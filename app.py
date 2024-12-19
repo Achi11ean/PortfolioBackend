@@ -44,7 +44,9 @@ def before_request():
         "/reviews": ["GET", "POST"],
         "/bookings/monthly-earnings": ["GET"],
         "/bookings/search": ["GET"],  # Mark the search endpoint as public
-        "/gallery": ["GET", "POST", "DELETE"]  # Allow public access to fetch/upload gallery photos
+        "/gallery": ["GET", "POST", "DELETE"],  # Allow public access to fetch/upload gallery photos
+        "/contacts": ["POST"]  # Add contacts as a public endpoint
+
 
         
     }
@@ -303,11 +305,24 @@ class Contact(db.Model):
 
 @app.route('/contacts', methods=['POST'])
 def save_contact():
+    print("---- Incoming POST Request to /contacts ----")  # Log incoming request
     data = request.get_json()
+    print("Received Data:", data)  # Log the received data
+
     try:
+        # Validate and log individual fields
+        print("First Name:", data.get("firstName"))
+        print("Last Name:", data.get("lastName"))
+        print("Phone:", data.get("phone"))
+        print("Email:", data.get("email"))
+        print("Message:", data.get("message"))
+        print("Status:", data.get("status", "Pending"))
+        print("Price:", data.get("price"))
+
+        # Create new contact
         new_contact = Contact(
-            first_name=data['firstName'],
-            last_name=data['lastName'],
+            first_name=data["firstName"],
+            last_name=data["lastName"],
             phone=data.get('phone'),  # Optional
             email=data['email'],
             message=data['message'],
@@ -316,10 +331,15 @@ def save_contact():
         )
         db.session.add(new_contact)
         db.session.commit()
+
+        print("Contact saved successfully!")  # Confirm saving success
         return jsonify({"message": "Contact saved successfully!", "contact": new_contact.to_dict()}), 201
-    except ValueError:
+
+    except ValueError as e:
+        print("ValueError:", e)  # Log the ValueError
         return jsonify({"error": "Price must be a valid number"}), 400
     except Exception as e:
+        print("Error:", str(e))  # Log any other exceptions
         return jsonify({"error": str(e)}), 500
 
 @app.route('/contacts', methods=['GET'])
