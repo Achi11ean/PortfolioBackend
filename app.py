@@ -16,7 +16,7 @@ load_dotenv()
 # Initialize Flask app
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": os.getenv("CORS_ORIGINS")}})
+CORS(app, supports_credentials=True, origins=os.getenv("CORS_ORIGINS", "*").split(","))
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("SQLALCHEMY_DATABASE_URI")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
@@ -44,15 +44,18 @@ def before_request():
         "/reviews": ["GET", "POST"],
         "/bookings/monthly-earnings": ["GET"],
         "/bookings/search": ["GET"],  # Mark the search endpoint as public
-
+        "/gallery": ["GET", "POST", "DELETE"]  # Allow public access to fetch/upload gallery photos
 
         
     }
 
     # Allow specific endpoints
-    if request.path in public_endpoints and request.method in public_endpoints[request.path]:
-        print("Public endpoint, skipping token verification.")
-        return  # Skip token checks for public routes
+# Allow specific endpoints with dynamic URLs
+    for endpoint, methods in public_endpoints.items():
+        if request.path.startswith(endpoint) and request.method in methods:
+            print("Public endpoint, skipping token verification.")
+            return
+
 
     if request.path.startswith("/reviews/") and request.method == "GET":
         print("Public GET request to reviews, skipping token verification.")
@@ -733,6 +736,104 @@ def get_paid_completed_earnings():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+
+VALID_PHOTO_TYPES = {"portrait", "couples", "events", "cosplay", "misc"}
+
+class Gallery(db.Model):
+    __tablename__ = "gallery"
+
+    id = db.Column(db.Integer, primary_key=True)
+    image_url = db.Column(db.String(255), nullable=False)
+    caption = db.Column(db.String(255), nullable=True)
+    category = db.Column(db.String(50), nullable=True)
+    photo_type = db.Column(db.String(20), nullable=False)  # Type: portrait, couples, etc.
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "image_url": self.image_url,
+            "caption": self.caption,
+            "category": self.category,
+            "photo_type": self.photo_type,
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+
+def validate_photo_type(photo_type):
+    """Validate that the photo type matches the allowed types."""
+    if photo_type not in VALID_PHOTO_TYPES:
+        raise ValueError(f"Invalid photo type. Allowed types: {', '.join(VALID_PHOTO_TYPES)}")
+
+@app.route('/gallery', methods=['POST'])
+def upload_photo():
+    """
+    Upload a new photo to the gallery.
+    """
+    data = request.get_json()
+
+    # Extract required fields
+    image_url = data.get("image_url")
+    caption = data.get("caption", "")
+    category = data.get("category", "Uncategorized")
+    photo_type = data.get("photo_type", "").lower()
+
+    # Validate photo type
+    try:
+        validate_photo_type(photo_type)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    if not image_url or not image_url.startswith(("http://", "https://")):
+        return jsonify({"error": "Invalid or missing image URL."}), 400
+
+    # Save to database
+    new_photo = Gallery(
+        image_url=image_url,
+        caption=caption,
+        category=category,
+        photo_type=photo_type,
+    )
+    db.session.add(new_photo)
+    db.session.commit()
+
+    return jsonify({"message": "Photo added successfully!", "photo": new_photo.to_dict()}), 201
+
+
+@app.route('/gallery', methods=['GET'])
+def get_gallery():
+    """
+    Fetch all gallery photos with optional filters: category, photo_type.
+    """
+    category = request.args.get("category", "").strip()
+    photo_type = request.args.get("photo_type", "").strip()
+
+    query = Gallery.query
+
+    if category:
+        query = query.filter(Gallery.category.ilike(f"%{category}%"))
+    if photo_type:
+        query = query.filter(Gallery.photo_type.ilike(f"%{photo_type}%"))
+
+    photos = query.all()
+    return jsonify([photo.to_dict() for photo in photos]), 200
+
+
+@app.route('/gallery/<int:photo_id>', methods=['DELETE'])
+def delete_photo(photo_id):
+    """
+    Delete a photo from the gallery.
+    """
+    photo = Gallery.query.get(photo_id)
+    if not photo:
+        return jsonify({"error": "Photo not found"}), 404
+
+    db.session.delete(photo)
+    db.session.commit()
+    return jsonify({"message": "Photo deleted successfully"}), 200
+
+
 
 
 # Initialize database and run server
