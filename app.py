@@ -8,14 +8,18 @@ from datetime import datetime, timedelta
 from functools import wraps
 from flask_cors import CORS
 from sqlalchemy import extract  # To filter by month
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # Initialize Flask app
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "http://localhost:5174"}})
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///reviews.db'
+CORS(app, resources={r"/*": {"origins": os.getenv("CORS_ORIGINS")}})
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("SQLALCHEMY_DATABASE_URI")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = 'your_secret_key'  # Change to a secure key in production
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
 
 # Initialize Extensions
 db = SQLAlchemy(app)

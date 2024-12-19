@@ -10,6 +10,7 @@ flask-bcrypt = "*"
 pyjwt = "*"
 flask-migrate = "*"
 flask-cors = "*"
+python-dotenv = "*"
 
 [dev-packages]
 
