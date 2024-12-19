@@ -739,7 +739,7 @@ def get_paid_completed_earnings():
 
 
 
-VALID_PHOTO_TYPES = {"portrait", "couples", "events", "cosplay", "misc"}
+VALID_PHOTO_TYPES = {"portrait", "couples", "Candid", "Group","events", "cosplay", "misc"}
 
 class Gallery(db.Model):
     __tablename__ = "gallery"
