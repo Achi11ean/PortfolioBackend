@@ -250,7 +250,7 @@ def create_review():
 
 @app.route('/reviews/pending', methods=['GET'])
 def get_pending_reviews():
-    pending_reviews = Review.query.filter(Review.is_approved == 0).all()  # Use 0 explicitly
+    pending_reviews = Review.query.filter(Review.is_approved == False).all()
     print("Pending Reviews Query:", [r.to_dict() for r in pending_reviews])  # Debug log
     return jsonify([review.to_dict() for review in pending_reviews]), 200
 
