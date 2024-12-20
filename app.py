@@ -29,12 +29,8 @@ migrate = Migrate(app, db)
 # Before Request Hook
 @app.before_request
 def before_request():
-    """
-    Logs the endpoint being accessed and ensures certain routes are public.
-    """
     print(f"Incoming request to: {request.path} [{request.method}]")
 
-    # Define public routes explicitly with method checks
     public_endpoints = {
         "/reviews/average": ["GET"],
         "/performance-bookings": ["POST", "GET"],
@@ -43,59 +39,31 @@ def before_request():
         "/login": ["POST"],
         "/reviews": ["GET", "POST"],
         "/bookings/monthly-earnings": ["GET"],
-        "/bookings/search": ["GET"],  # Mark the search endpoint as public
-        "/gallery": ["GET", "POST", "DELETE"],  # Allow public access to fetch/upload gallery photos
-        "/contacts": ["POST"]  # Add contacts as a public endpoint
-
-
-        
+        "/bookings/search": ["GET"],
+        "/gallery": ["GET", "POST", "DELETE"],
+        "/contacts": ["POST"]
     }
+    if request.method == 'OPTIONS':
+        return  # Let CORS handle it
 
-    # Allow specific endpoints
-# Allow specific endpoints with dynamic URLs
     for endpoint, methods in public_endpoints.items():
         if request.path.startswith(endpoint) and request.method in methods:
             print("Public endpoint, skipping token verification.")
             return
 
-
-    if request.path.startswith("/reviews/") and request.method == "GET":
-        print("Public GET request to reviews, skipping token verification.")
-        return
-
-    if request.method == "OPTIONS":
-        print("CORS preflight request allowed.")
-        return  # Allow CORS preflight requests
-
-    # Protect all other routes
     token = request.headers.get('Authorization')
     if not token:
         return jsonify({"error": "Token is missing"}), 401
     
     try:
-        # Extract token after "Bearer"
         token = token.split(" ")[1]
-        print(f"Received Token: {token}", flush=True)
-
         decoded_token = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
-        print(f"Decoded Token: {decoded_token}", flush=True)
-
         current_user = User.query.filter_by(id=decoded_token['user_id']).first()
-        print(f"User: {current_user}", flush=True)
 
         if not current_user or not current_user.is_admin:
             return jsonify({"error": "Unauthorized access"}), 403
-
-    except IndexError:
-        return jsonify({"error": "Token format invalid. Use 'Bearer <token>'"}), 401
-    except jwt.ExpiredSignatureError:
-        return jsonify({"error": "Token has expired"}), 401
-    except jwt.InvalidTokenError as e:
-        print(f"Invalid Token: {e}", flush=True)
-        return jsonify({"error": "Invalid token"}), 401
-
-
-
+    except Exception as e:
+        return jsonify({"error": "Invalid or expired token"}), 401
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -104,15 +72,19 @@ class User(db.Model):
     is_admin = db.Column(db.Boolean, default=False)
 
 # Review model
+
+
+# Review model (already defined)
 class Review(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), nullable=False)
-    rating = db.Column(db.Float, nullable=False)  # Allows ratings like 4.5
-    service = db.Column(db.String(50), nullable=False)  # Dropdown values (e.g., karaoke, software engineering)
-    image_url = db.Column(db.String(255), nullable=True)  # Optional field for image URL
-    website_url = db.Column(db.String(255), nullable=True)  # Optional field for website URL
-    description = db.Column(db.Text, nullable=False)  # Description field for additional details
+    rating = db.Column(db.Float, nullable=False)
+    service = db.Column(db.String(50), nullable=False)
+    image_url = db.Column(db.String(255), nullable=True)
+    website_url = db.Column(db.String(255), nullable=True)
+    description = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_approved = db.Column(db.Boolean, default=False, nullable=False)
 
     def to_dict(self):
         return {
@@ -123,30 +95,55 @@ class Review(db.Model):
             "image_url": self.image_url,
             "website_url": self.website_url,
             "description": self.description,
-            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "is_approved": self.is_approved,
         }
 
+# PATCH endpoint to update a review
+@app.route("/reviews/<int:review_id>", methods=["PATCH"])
+def update_review(review_id):
+    review = Review.query.get_or_404(review_id)  # Fetch the review or return 404
+    
+    data = request.json  # Parse JSON request body
 
-# Helper function to protect routes
-def token_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        token = request.headers.get('Authorization')
-        print(f"Token received: {token}", flush=True)
+    # Update only the fields provided in the request
+    if "name" in data:
+        review.name = data["name"]
+    if "rating" in data:
+        review.rating = data["rating"]
+    if "service" in data:
+        review.service = data["service"]
+    if "image_url" in data:
+        review.image_url = data["image_url"]
+    if "website_url" in data:
+        review.website_url = data["website_url"]
+    if "description" in data:
+        review.description = data["description"]
+    if "is_approved" in data:
+        review.is_approved = data["is_approved"]
 
-        if not token:
-            return jsonify({"error": "Token is missing"}), 401
-        try:
-            decoded_token = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
-            current_user = User.query.filter_by(id=decoded_token['user_id']).first()
-            if not current_user or not current_user.is_admin:
-                return jsonify({"error": "Unauthorized access"}), 403
-        except jwt.ExpiredSignatureError:
-            return jsonify({"error": "Token has expired"}), 401
-        except jwt.InvalidTokenError:
-            return jsonify({"error": "Invalid token"}), 401
-        return f(*args, **kwargs)
-    return decorated
+    # Commit the updated fields
+    db.session.commit()
+
+    return jsonify(review.to_dict()), 200  # Return the updated review
+
+
+
+@app.route('/reviews/<int:id>/approve', methods=['PATCH'])
+def approve_review(id):
+    """
+    Approve a review by setting is_approved to True.
+    """
+    review = Review.query.get(id)
+    if not review:
+        return jsonify({"error": "Review not found"}), 404
+
+    review.is_approved = True
+    db.session.commit()
+
+    return jsonify({"message": "Review approved successfully!", "review": review.to_dict()}), 200
+
+
 
 # Admin signup route
 @app.route('/signup', methods=['POST'])
@@ -216,6 +213,9 @@ def delete_review(id):
 # Create a new review
 @app.route('/reviews', methods=['POST'])
 def create_review():
+    """
+    Create a new review with 'is_approved' set to False by default.
+    """
     data = request.get_json()
 
     # Validate required fields
@@ -223,42 +223,60 @@ def create_review():
         return jsonify({"error": "Missing required fields: name, rating, service, description"}), 400
 
     try:
-        # Create a new review instance
+        # Create a new review instance with 'is_approved' as False
         new_review = Review(
             name=data['name'],
             rating=float(data['rating']),  # Ensures rating is a float
             service=data['service'],
             image_url=data.get('image_url'),  # Optional field
             website_url=data.get('website_url'),  # Optional field
-            description=data['description']
+            description=data['description'],
+            is_approved=False  # Default to pending approval
         )
 
         # Add to database and commit
         db.session.add(new_review)
         db.session.commit()
 
-        return jsonify({"message": "Review added!", "review": new_review.to_dict()}), 201
+        return jsonify({"message": "Review added and pending approval!", "review": new_review.to_dict()}), 201
 
     except ValueError:
         return jsonify({"error": "Invalid value for 'rating'. It must be a number (e.g., 4.5)."}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+
+
+@app.route('/reviews/pending', methods=['GET'])
+def get_pending_reviews():
+    pending_reviews = Review.query.filter(Review.is_approved == 0).all()  # Use 0 explicitly
+    print("Pending Reviews Query:", [r.to_dict() for r in pending_reviews])  # Debug log
+    return jsonify([review.to_dict() for review in pending_reviews]), 200
+
+
+
 @app.route('/reviews', methods=['GET'])
 def get_reviews():
-    # Get the search term from query parameters
+    """
+    Fetch approved reviews. Optional filter by service using query parameter.
+    """
     search_term = request.args.get('service', '').strip()
 
     try:
-        if search_term:
-            reviews = Review.query.filter(Review.service.ilike(f"%{search_term}%")).all()
-        else:
-            reviews = Review.query.all()
+        # Fetch only approved reviews
+        query = Review.query.filter_by(is_approved=True)
 
+        # Apply search filter if 'service' is provided
+        if search_term:
+            query = query.filter(Review.service.ilike(f"%{search_term}%"))
+
+        reviews = query.all()
         return jsonify([review.to_dict() for review in reviews]), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/bookings/all', methods=['GET'])
 def get_all_bookings():
