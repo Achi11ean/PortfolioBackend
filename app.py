@@ -403,7 +403,6 @@ class EngineeringBooking(db.Model):
     client_email = db.Column(db.String(120), nullable=False)
     client_phone = db.Column(db.String(15), nullable=True)
     project_name = db.Column(db.String(120), nullable=False)
-    project_manager = db.Column(db.String(80), nullable=True)
     project_type = db.Column(db.String(50), nullable=False)
     project_start_date = db.Column(db.String(50), nullable=False)
     project_end_date = db.Column(db.String(50), nullable=False)
@@ -420,7 +419,6 @@ class EngineeringBooking(db.Model):
             "client_email": self.client_email,
             "client_phone": self.client_phone,
             "project_name": self.project_name,
-            "project_manager": self.project_manager,
             "project_type": self.project_type,
             "project_start_date": self.project_start_date,
             "project_end_date": self.project_end_date,
@@ -440,7 +438,6 @@ def save_engineering_booking():
             client_email=data['clientEmail'],
             client_phone=data.get('clientPhone'),
             project_name=data['projectName'],
-            project_manager=data.get('projectManager'),
             project_type=data['projectType'],
             project_start_date=data['projectStartDate'],
             project_end_date=data['projectEndDate'],
