@@ -33,7 +33,7 @@ def before_request():
 
     public_endpoints = {
         "/reviews/average": ["GET"],
-        "/performance-bookings": ["POST", "GET"],
+        "/performance-bookings": ["POST", "GET", "PATCH"],
         "/engineering-bookings": ["POST", "GET"],
         "/signup": ["POST"],
         "/login": ["POST"],
@@ -41,7 +41,8 @@ def before_request():
         "/bookings/monthly-earnings": ["GET"],
         "/bookings/search": ["GET"],
         "/gallery": ["GET", "POST", "DELETE"],
-        "/contacts": ["POST"]
+        "/contacts": ["POST", "GET"],
+        "/api/bookings/dates": ["GET"]
     }
     if request.method == 'OPTIONS':
         return  # Let CORS handle it
@@ -367,27 +368,49 @@ def get_contacts():
 @app.route('/engineering-bookings', methods=['GET'])
 def get_engineering_bookings():
     engineering_bookings = EngineeringBooking.query.all()
-    return jsonify([booking.to_dict() for booking in engineering_bookings]), 200
+    
+    # Include contact data in the response
+    result = []
+    for booking in engineering_bookings:
+        booking_dict = booking.to_dict()
+        contact = Contact.query.get(booking.contact_id)
+        if contact:
+            booking_dict["contact"] = contact.to_dict()
+        else:
+            booking_dict["contact"] = None  # Handle missing contact
+        result.append(booking_dict)
+    
+    return jsonify(result), 200
+
 @app.route('/performance-bookings', methods=['GET'])
 def get_performance_bookings():
     performance_bookings = PerformanceBooking.query.all()
     return jsonify([booking.to_dict() for booking in performance_bookings]), 200
 
 @app.route('/contacts/<int:id>', methods=['PATCH'])
-def update_contact_status(id):
+def update_contact(id):
     data = request.get_json()
     contact = Contact.query.get(id)
+    
     if not contact:
         return jsonify({"error": "Contact not found"}), 404
 
-    # Update the status if provided
+    # Update all fields if provided
+    if "first_name" in data:
+        contact.first_name = data["first_name"]
+    if "last_name" in data:
+        contact.last_name = data["last_name"]
+    if "phone" in data:
+        contact.phone = data["phone"]
+    if "email" in data:
+        contact.email = data["email"]
+    if "message" in data:
+        contact.message = data["message"]
     if "status" in data:
         contact.status = data["status"]
-    
-    # Update the price if provided
     if "price" in data:
         try:
-            contact.price = float(data["price"])
+            contact.price = float(data["price"]) if data["price"] is not None else None
         except ValueError:
             return jsonify({"error": "Price must be a valid number"}), 400
 
@@ -399,9 +422,8 @@ def update_contact_status(id):
 # Engineering Booking model
 class EngineeringBooking(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    client_name = db.Column(db.String(80), nullable=False)
-    client_email = db.Column(db.String(120), nullable=False)
-    client_phone = db.Column(db.String(15), nullable=True)
+    contact_id = db.Column(db.Integer, db.ForeignKey('contact.id'), nullable=False)  # Foreign key to Contact
+    contact = db.relationship('Contact', backref='engineering_bookings')  # Establish relationship
     project_name = db.Column(db.String(120), nullable=False)
     project_type = db.Column(db.String(50), nullable=False)
     project_start_date = db.Column(db.String(50), nullable=False)
@@ -415,9 +437,7 @@ class EngineeringBooking(db.Model):
     def to_dict(self):
         return {
             "id": self.id,
-            "client_name": self.client_name,
-            "client_email": self.client_email,
-            "client_phone": self.client_phone,
+            "contact": self.contact.to_dict(),  # Include contact details
             "project_name": self.project_name,
             "project_type": self.project_type,
             "project_start_date": self.project_start_date,
@@ -432,11 +452,19 @@ class EngineeringBooking(db.Model):
 def save_engineering_booking():
     data = request.get_json()
     try:
+        # Retrieve the contact_id from the request data
+        contact_id = data.get('contactId')
+        if not contact_id:
+            return jsonify({"error": "Contact ID is required"}), 400
+
+        # Validate that the contact exists
+        contact = Contact.query.get(contact_id)
+        if not contact:
+            return jsonify({"error": "Contact not found"}), 404
+
         # Create a new EngineeringBooking instance
         new_booking = EngineeringBooking(
-            client_name=data['clientName'],
-            client_email=data['clientEmail'],
-            client_phone=data.get('clientPhone'),
+            contact_id=contact_id,  # Associate the booking with the contact
             project_name=data['projectName'],
             project_type=data['projectType'],
             project_start_date=data['projectStartDate'],
@@ -451,29 +479,64 @@ def save_engineering_booking():
         db.session.add(new_booking)
         db.session.commit()
 
-        return jsonify({"message": "Booking saved successfully!", "booking": new_booking.to_dict()}), 201
+        return jsonify({
+            "message": "Booking saved successfully!",
+            "booking": new_booking.to_dict()
+        }), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
 @app.route('/engineering-bookings/<int:id>', methods=['PATCH'])
 def update_engineering_booking(id):
+    from datetime import datetime
+
     data = request.get_json()
+    
     booking = EngineeringBooking.query.get(id)
     if not booking:
         return jsonify({"error": "Engineering booking not found"}), 404
 
-    # Update the status if provided
+    # Update fields
+    if "project_name" in data:
+        booking.project_name = data["project_name"]
+    if "project_type" in data:
+        booking.project_type = data["project_type"]
+
+    if "project_start_date" in data:
+        # Add default time of 10:00 AM if not already included
+        date_str = data["project_start_date"]
+        if "T" not in date_str:
+            date_str += "T10:00:00"
+        booking.project_start_date = date_str
+
+    if "project_end_date" in data:
+        # Add default time of 10:00 AM if not already included
+        date_str = data["project_end_date"]
+        if "T" not in date_str:
+            date_str += "T10:00:00"
+        booking.project_end_date = date_str
+
+    if "project_description" in data:
+        booking.project_description = data["project_description"]
+    if "special_requests" in data:
+        booking.special_requests = data["special_requests"]
     if "status" in data:
         booking.status = data["status"]
-
-    # Update the price if provided
     if "price" in data:
         try:
             booking.price = float(data["price"])
         except ValueError:
             return jsonify({"error": "Price must be a valid number"}), 400
 
+    # Commit the changes
     db.session.commit()
-    return jsonify({"message": "Engineering booking updated successfully!", "booking": booking.to_dict()}), 200
+
+    # Return the full booking data
+    return jsonify(booking.to_dict()), 200
+
+
+
 
 @app.route('/bookings/monthly-earnings', methods=['GET'])
 def get_monthly_earnings():
@@ -501,83 +564,120 @@ def get_monthly_earnings():
         return jsonify({"error": str(e)}), 500
 
 # Performance Booking model
-# Performance Booking model
 class PerformanceBooking(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    client_name = db.Column(db.String(80), nullable=False)
-    client_email = db.Column(db.String(120), nullable=False)
-    client_phone = db.Column(db.String(15), nullable=True)
+    contact_id = db.Column(db.Integer, db.ForeignKey('contact.id'), nullable=False)  # Foreign key to Contact
+    contact = db.relationship('Contact', backref='performance_bookings')  # Establish relationship
     event_name = db.Column(db.String(120), nullable=False)
     event_type = db.Column(db.String(50), nullable=False)
     event_date_time = db.Column(db.String(50), nullable=False)
     location = db.Column(db.String(255), nullable=False)
     guests = db.Column(db.String(10), nullable=True)
     special_requests = db.Column(db.Text, nullable=True)
-    price = db.Column(db.Float, nullable=True)  # Renamed from price_range
+    price = db.Column(db.Float, nullable=True)  # Updated to Float
     status = db.Column(db.String(50), nullable=False, default="Pending")  # Status field
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {
             "id": self.id,
-            "client_name": self.client_name,
-            "client_email": self.client_email,
-            "client_phone": self.client_phone,
+            "contact": self.contact.to_dict(),  # Include contact details
             "event_name": self.event_name,
             "event_type": self.event_type,
             "event_date_time": self.event_date_time,
             "location": self.location,
             "guests": self.guests,
             "special_requests": self.special_requests,
-            "price": self.price,  # Updated field
+            "price": self.price,
             "status": self.status,  # Include status
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S"),
         }
-
 
 @app.route('/performance-bookings', methods=['POST'])
 def save_performance_booking():
     data = request.get_json()
     try:
+        # Fetch the contact using contact_id from the request
+        contact = Contact.query.get(data.get('contactId'))
+        if not contact:
+            return jsonify({"error": "Contact not found"}), 404
+
+        # Create a new PerformanceBooking with the associated contact
         new_booking = PerformanceBooking(
-            client_name=data['clientName'],
-            client_email=data['clientEmail'],
-            client_phone=data.get('clientPhone'),
+            contact_id=contact.id,  # Associate with the Contact
             event_name=data['eventName'],
             event_type=data['eventType'],
             event_date_time=data['eventDateTime'],
             location=data['location'],
             guests=data.get('guests'),
             special_requests=data.get('specialRequests'),
-            price=data.get('price')  # Renamed field
+            price=data.get('price'),  # Renamed field
+            status=data.get('status', "Pending")  # Default status if not provided
         )
         db.session.add(new_booking)
         db.session.commit()
-        return jsonify({"message": "Performance booking saved successfully!", "booking": new_booking.to_dict()}), 201
+
+        return jsonify({
+            "message": "Performance booking saved successfully!",
+            "booking": new_booking.to_dict()
+        }), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 @app.route('/performance-bookings/<int:id>', methods=['PATCH'])
-def update_performance_booking_status(id):
+def update_performance_booking(id):
+    from datetime import datetime
+
     data = request.get_json()
     booking = PerformanceBooking.query.get(id)
+    
     if not booking:
         return jsonify({"error": "Performance booking not found"}), 404
 
-    # Update the status if provided
-    if "status" in data:
-        booking.status = data["status"]
+    # Update fields
+    if "contactId" in data:
+        contact = Contact.query.get(data["contactId"])
+        if not contact:
+            return jsonify({"error": "Contact not found"}), 404
+        booking.contact_id = contact.id  # Associate the booking with the contact
 
-    # Update the price if provided
+    if "eventName" in data:
+        booking.event_name = data["eventName"]
+
+    if "eventType" in data:
+        booking.event_type = data["eventType"]
+
+    if "eventDateTime" in data:
+        # Add default time of 10:00 AM if not already included
+        date_str = data["eventDateTime"]
+        if "T" not in date_str:
+            date_str += "T10:00:00"
+        booking.event_date_time = date_str
+
+    if "location" in data:
+        booking.location = data["location"]
+
+    if "guests" in data:
+        booking.guests = data["guests"]
+
+    if "specialRequests" in data:
+        booking.special_requests = data["specialRequests"]
+
     if "price" in data:
         try:
-            booking.price = float(data["price"])  # Renamed field
+            booking.price = float(data["price"])  # Ensure price is stored as a float
         except ValueError:
             return jsonify({"error": "Price must be a valid number"}), 400
 
+    if "status" in data:
+        booking.status = data["status"]
+
+    # Commit the changes
     db.session.commit()
+
+    # Return the updated booking
     return jsonify({"message": "Performance booking updated successfully!", "booking": booking.to_dict()}), 200
+
 
 
 
@@ -869,6 +969,54 @@ def delete_photo(photo_id):
     return jsonify({"message": "Photo deleted successfully"}), 200
 
 
+@app.route('/api/bookings/dates', methods=['GET'])
+def get_booking_dates():
+    try:
+        def parse_date(date_value):
+            if isinstance(date_value, str):
+                try:
+                    return datetime.fromisoformat(date_value)
+                except ValueError:
+                    return None
+            return date_value
+
+        # Fetch EngineeringBooking dates
+        engineering_bookings = EngineeringBooking.query.all()
+        engineering_dates = [
+            {
+                "id": booking.id,
+                "type": "Engineering",
+                "title": booking.project_name,
+                "start": parse_date(booking.project_start_date).isoformat() if parse_date(booking.project_start_date) else None,
+                "end": parse_date(booking.project_end_date).isoformat() if parse_date(booking.project_end_date) else None,
+                "status": booking.status,
+                "description": booking.project_description or "No description available",
+                "contact": booking.contact.to_dict() if booking.contact else None,
+            }
+            for booking in engineering_bookings
+        ]
+
+        # Fetch PerformanceBooking dates
+        performance_bookings = PerformanceBooking.query.all()
+        performance_dates = [
+            {
+                "id": booking.id,
+                "type": "Performance",
+                "title": booking.event_name,
+                "start": parse_date(booking.event_date_time).isoformat() if parse_date(booking.event_date_time) else None,
+                "end": parse_date(booking.event_date_time).isoformat() if parse_date(booking.event_date_time) else None,
+                "status": booking.status,
+                "description": booking.special_requests or "No special requests",
+                "contact": booking.contact.to_dict() if booking.contact else None,
+            }
+            for booking in performance_bookings
+        ]
+
+        all_dates = engineering_dates + performance_dates
+        return jsonify(all_dates), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # Initialize database and run server
