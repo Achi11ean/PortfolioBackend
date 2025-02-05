@@ -16,7 +16,7 @@ load_dotenv()
 # Initialize Flask app
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app, supports_credentials=True, origins=os.getenv("CORS_ORIGINS", "*").split(","))
+CORS(app, supports_credentials=True, resources={r"/*": {"origins": os.getenv("CORS_ORIGINS", "*").split(",")}})
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("SQLALCHEMY_DATABASE_URI")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
