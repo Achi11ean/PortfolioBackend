@@ -42,7 +42,8 @@ def before_request():
         "/bookings/search": ["GET"],
         "/gallery": ["GET", "POST", "DELETE"],
         "/contacts": ["POST", "GET"],
-        "/api/bookings/dates": ["GET"]
+        "/api/bookings/dates": ["GET"],
+        "/karaokesignup": ["POST", "PATCH", "GET", "DELETE"]
     }
     if request.method == 'OPTIONS':
         return  # Let CORS handle it
@@ -1017,6 +1018,90 @@ def get_booking_dates():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+class Karaoke(db.Model):
+    id = db.Column(db.Integer, primary_key=True)  # Fixed typo
+    name = db.Column(db.String(25), nullable=False)
+    song = db.Column(db.String(200), nullable=False)
+    artist = db.Column(db.String(200), nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.now()) 
+
+    def to_dict(self):
+        """Convert the Karaoke entry into a dictionary."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "song": self.song,
+            "artist": self.artist,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
+
+@app.route("/karaokesignup", methods=["POST"])
+def karaokesignup():
+    data = request.get_json()
+    if not data or not all(key in data for key in ["name", "song", "artist"]):
+        return jsonify({"error": "Missing required fields"}), 400
+    new_entry = Karaoke(
+        name=data["name"],
+        song=data["song"],
+        artist=data["artist"]
+    )
+    db.session.add(new_entry)
+    db.session.commit()
+
+    return jsonify(new_entry.to_dict()), 201
+
+@app.route("/karaokesignup/<int:id>", methods=["PATCH"])
+def update_karaoke_signup(id):
+    data = request.get_json()
+    entry = Karaoke.query.get(id)
+
+    if not entry:
+        return jsonify({"error": "Signup not found"}), 404
+
+    # Update only the provided fields
+    if "name" in data:
+        entry.name = data["name"]
+    if "song" in data:
+        entry.song = data["song"]
+    if "artist" in data:
+        entry.artist = data["artist"]
+
+    db.session.commit()
+    return jsonify(entry.to_dict()), 200  # Return updated entry
+
+@app.route("/karaokesignup/<int:id>", methods=["DELETE"])
+def delete_karaoke_signup(id):
+    entry = Karaoke.query.get(id)
+
+    if not entry:
+        return jsonify({"error": "Signup not found"}), 404
+
+    db.session.delete(entry)
+    db.session.commit()
+
+    return jsonify({"message": "Signup deleted successfully"}), 200
+
+@app.route("/karaokesignup", methods=["DELETE"])
+def delete_all_karaoke_signups():
+    try:
+        num_deleted = db.session.query(Karaoke).delete()
+        db.session.commit()
+        return jsonify({"message": f"Deleted {num_deleted} signups successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+@app.route("/karaokesignup", methods=["GET"])
+def get_all_karaoke_signups():
+    signups = Karaoke.query.all()
+    return jsonify([signup.to_dict() for signup in signups]), 200
+@app.route("/karaokesignup/<int:id>", methods=["GET"])
+def get_karaoke_signup(id):
+    signup = Karaoke.query.get(id)
+    if not signup:
+        return jsonify({"error": "Signup not found"}), 404
+    return jsonify(signup.to_dict()), 200
+
 
 
 # Initialize database and run server
