@@ -51,7 +51,8 @@ def before_request():
         "/djnotes/<int:id>":[ "PATCH", "GET", "DELETE"],
         "/djnotes/<int:id>/hard_delete": ["DELETE"],
         "/djnotes/deleted":["GET"],
-        "/djnotesactive":["GET"]  # ✅ Added this line
+        "/djnotesactive":["GET"],  
+        "/karaokesignup/flagged":["GET"],
 
     }
     if request.method == 'OPTIONS':
@@ -1052,6 +1053,11 @@ class Karaoke(db.Model):
         }
         print("Serialized Data Sent to Frontend:", data)  # ✅ Debugging log
         return data
+@app.route("/karaokesignup/flagged", methods=["GET"])
+def get_flagged_karaoke_signups():
+    """Retrieve all flagged karaoke signups"""
+    flagged_signups = Karaoke.query.filter_by(is_flagged=True, is_deleted=False).all()
+    return jsonify([signup.to_dict() for signup in flagged_signups]), 200
 
 
 @app.route("/karaokesignup", methods=["POST"])
