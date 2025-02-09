@@ -1160,7 +1160,6 @@ def soft_delete_karaoke_signup(id):
 
     print(f"Signup {id} marked as deleted.")  # ✅ Debugging log
     return jsonify({"message": f"Signup {id} soft deleted successfully"}), 200
-
 @app.route("/karaokesignup/<int:id>/move", methods=["PATCH"])
 def move_karaoke_signup(id):
     print(f"Received request to move signup with ID: {id}")  # Debugging log
@@ -1201,7 +1200,7 @@ def move_karaoke_signup(id):
         signups.sort(key=lambda x: x.created_at)  # Assuming a timestamp field exists
         for i, signup in enumerate(signups):
             signup.position = i
-        db.session.query(Karaoke).filter_by(id=signup.id).update({"position": i})
+            db.session.query(Karaoke).filter_by(id=signup.id).update({"position": i})
         db.session.commit()
         return jsonify({"message": "Signups sorted by time"}), 200
     else:
@@ -1211,24 +1210,24 @@ def move_karaoke_signup(id):
     if new_index == current_index:
         print("No movement needed")  # Debugging log
         return jsonify({"message": "No movement needed"}), 200
-    
-    # Remove moving entry from current position
-    moving_entry = signups.pop(current_index)
-    
-    # Shift other signups accordingly
-    for i in range(current_index, new_index if new_index > current_index else new_index - 1, -1 if new_index < current_index else 1):
-        signups[i].position = signups[i - 1].position if new_index < current_index else signups[i + 1].position
-    
-    # Insert moving entry in new position
-    signups.insert(new_index, moving_entry)
-    moving_entry.position = new_index
-    
-    # Reassign positions sequentially to maintain correct order
+
+    # ✅ Fix: Ensure safe list removal and reordering
+    moving_entry = signups.pop(current_index)  # Remove the entry from the list
+
+    if new_index == 0:  # Moving to the first position
+        signups.insert(0, moving_entry)  # Insert at the beginning
+    else:
+        signups.insert(new_index, moving_entry)  # Insert at the correct position
+
+    # ✅ Fix: Recalculate positions to prevent out-of-range errors
     for i, signup in enumerate(signups):
         signup.position = i
-    
+        db.session.query(Karaoke).filter_by(id=signup.id).update({"position": i})
+
     db.session.commit()
+    
     return jsonify({"message": f"Signup moved {action}"}), 200
+
 
 
 @app.route("/karaokesignup/sort", methods=["PATCH"])
