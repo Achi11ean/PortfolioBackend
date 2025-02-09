@@ -1047,21 +1047,27 @@ class Karaoke(db.Model):
 
 
 
-
 @app.route("/karaokesignup", methods=["POST"])
 def karaokesignup():
     data = request.get_json()
     if not data or not all(key in data for key in ["name", "song", "artist"]):
         return jsonify({"error": "Missing required fields"}), 400
+
+    # Get the next available position
+    max_position = db.session.query(db.func.max(Karaoke.position)).scalar()
+    next_position = (max_position + 1) if max_position is not None else 1  # Start from 1 if empty
+
     new_entry = Karaoke(
         name=data["name"],
         song=data["song"],
-        artist=data["artist"]
+        artist=data["artist"],
+        position=next_position  # Assign a valid position
     )
     db.session.add(new_entry)
     db.session.commit()
 
     return jsonify(new_entry.to_dict()), 201
+
 
 @app.route("/karaokesignup/<int:id>", methods=["PATCH"])
 def update_karaoke_signup(id):
@@ -1154,11 +1160,14 @@ def soft_delete_karaoke_signup(id):
 
 @app.route("/karaokesignup/<int:id>/move", methods=["PATCH"])
 def move_karaoke_signup(id):
+    print(f"Received request to move signup with ID: {id}")  # Debugging log
+
     data = request.json
-    action = data.get("action")  # "up", "down", "up5", "down5", "up_next", "sort_by_time"
+    action = data.get("action")
     
     entry = Karaoke.query.get(id)
     if not entry:
+        print(f"Signup with ID {id} not found")  # Debugging log
         return jsonify({"error": "Signup not found"}), 404
 
     # Fetch all signups ordered by position
@@ -1166,9 +1175,13 @@ def move_karaoke_signup(id):
 
     # Find current position index
     current_index = next((i for i, s in enumerate(signups) if s.id == id), None)
+    
     if current_index is None:
+        print(f"Signup with ID {id} not found in ordered list")  # Debugging log
         return jsonify({"error": "Signup not found in ordered list"}), 404
     
+    print(f"Current index of ID {id}: {current_index}")  # Debugging log
+
     if action == "up":
         new_index = max(0, current_index - 1)
     elif action == "down":
@@ -1188,12 +1201,15 @@ def move_karaoke_signup(id):
         db.session.commit()
         return jsonify({"message": "Signups sorted by time"}), 200
     else:
+        print(f"Invalid action received: {action}")  # Debugging log
         return jsonify({"error": "Invalid action"}), 400
     
     if new_index == current_index:
+        print("No movement needed")  # Debugging log
         return jsonify({"message": "No movement needed"}), 200
     
     # Swap positions
+    print(f"Moving signup {id} from index {current_index} to {new_index}")  # Debugging log
     signups[current_index].position, signups[new_index].position = (
         signups[new_index].position,
         signups[current_index].position,
