@@ -1044,17 +1044,7 @@ class Karaoke(db.Model):
 
         }
 
-@app.route("/karaokesignup/<int:id>", methods=["DELETE"])
-def soft_delete_karaoke_signup(id):
-    entry = Karaoke.query.get(id)
 
-    if not entry:
-        return jsonify({"error": "Signup not found"}), 404
-
-    entry.is_deleted = True  # Soft delete instead of removing
-    db.session.commit()
-
-    return jsonify({"message": "Signup soft deleted successfully"}), 200
 
 
 @app.route("/karaokesignup", methods=["POST"])
