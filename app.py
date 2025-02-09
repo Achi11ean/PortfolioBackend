@@ -1084,38 +1084,48 @@ def karaokesignup():
 
 @app.route("/karaokesignup/<int:id>", methods=["PATCH"])
 def update_karaoke_signup(id):
-    print(f"Received PATCH request for ID: {id}")  # Log request ID
+    print(f"🟡 Received PATCH request for ID: {id}")  # Log request ID
 
     data = request.get_json()
-    print(f"Request JSON data: {data}")  # Log received JSON data
+    print(f"🔍 Request JSON data: {data}")  # Log received JSON data
 
     entry = Karaoke.query.get(id)
     
     if not entry:
-        print("Signup not found")  # Log missing entry
+        print("❌ Signup not found!")  # Log missing entry
         return jsonify({"error": "Signup not found"}), 404
+
+    print(f"🔄 BEFORE UPDATE → ID: {entry.id}, Name: {entry.name}, is_flagged: {entry.is_flagged}")  
 
     # Update only the provided fields
     if "name" in data:
-        print(f"Updating name: {entry.name} → {data['name']}")
+        print(f"✏️ Updating name: {entry.name} → {data['name']}")
         entry.name = data["name"]
     if "song" in data:
-        print(f"Updating song: {entry.song} → {data['song']}")
+        print(f"🎵 Updating song: {entry.song} → {data['song']}")
         entry.song = data["song"]
     if "artist" in data:
-        print(f"Updating artist: {entry.artist} → {data['artist']}")
+        print(f"🎤 Updating artist: {entry.artist} → {data['artist']}")
         entry.artist = data["artist"]
     if "is_flagged" in data:
-        print(f"Updating is_flagged: {entry.is_flagged} → {data['is_flagged']}")
+        print(f"🚩 Updating is_flagged: {entry.is_flagged} → {data['is_flagged']}")
         entry.is_flagged = data["is_flagged"]
 
     try:
         db.session.commit()
-        print("Database commit successful")  # Log successful commit
+        print("✅ Database commit successful!")  
+
+        # 🔥 FETCH FROM DATABASE AGAIN TO CHECK IF IT REALLY SAVED
+        updated_entry = Karaoke.query.get(id)
+        print(f"🔍 AFTER COMMIT → ID: {updated_entry.id}, is_flagged: {updated_entry.is_flagged}")
+
+        return jsonify(updated_entry.to_dict()), 200  # Return updated entry
+
     except Exception as e:
         db.session.rollback()
-        print(f"Database commit failed: {e}")  # Log database error
+        print(f"❌ Database commit failed: {e}")  
         return jsonify({"error": "Database update failed"}), 500
+
 
     updated_entry = entry.to_dict()
     print(f"Updated entry: {updated_entry}")  # Log final updated entry
@@ -1146,16 +1156,24 @@ def delete_all_karaoke_signups():
         return jsonify({"error": str(e)}), 500
 @app.route("/karaokesignup", methods=["GET"])
 def get_all_karaoke_signups():
-    search_term = request.args.get("search", "").strip().lower()  # Get search query
+    search_term = request.args.get("search", "").strip().lower()
 
-    query = Karaoke.query.filter_by(is_deleted=False)
+    query = Karaoke.query.filter_by(is_deleted=False)  # Don't fetch deleted entries
 
     if search_term:
         query = query.filter(
-            (Karaoke.name.ilike(f"%{search_term}%"))   )  # Case-insensitive search in name, song, or artist fields
+            (Karaoke.name.ilike(f"%{search_term}%")) | 
+            (Karaoke.song.ilike(f"%{search_term}%")) | 
+            (Karaoke.artist.ilike(f"%{search_term}%"))
+        )  
 
     signups = query.order_by(Karaoke.position.asc()).all()
+    
+    # 🚀 Print EVERY signup to confirm is_flagged is being returned
+    print("📡 Sending Karaoke Signups to Frontend:", [s.to_dict() for s in signups])
+
     return jsonify([signup.to_dict() for signup in signups]), 200
+
 
 
 @app.route("/karaokesignup/<int:id>", methods=["GET"])
