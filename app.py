@@ -53,6 +53,7 @@ def before_request():
         "/djnotes/deleted":["GET"],
         "/djnotesactive":["GET"],  
         "/karaokesignup/flagged":["GET"],
+        "/karaokesignup/hard_delete": ["DELETE"],
 
     }
     if request.method == 'OPTIONS':
@@ -1444,6 +1445,18 @@ def hard_delete_all_dj_notes():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Failed to delete DJ Notes: {str(e)}"}), 500
+@app.route("/karaokesignup/hard_delete", methods=["DELETE"])
+def hard_delete_soft_deleted_karaoke_signups():
+    """Permanently deletes only the signups that have been soft deleted"""
+    try:
+        # Delete entries where `is_deleted` is True
+        num_deleted = Karaoke.query.filter_by(is_deleted=True).delete()
+        db.session.commit()
+
+        return jsonify({"message": f"Permanently deleted {num_deleted} soft-deleted signups"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 # Initialize database and run server
 if __name__ == "__main__":
