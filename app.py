@@ -56,13 +56,6 @@ def before_request():
     }
     if request.method == 'OPTIONS':
         return  # Let CORS handle it
-       # Remove query parameters from the path to match endpoints correctly
-    path_without_query = request.path.split("?")[0]  
-
-    for endpoint, methods in public_endpoints.items():
-        if path_without_query == endpoint and request.method in methods:
-            print("Public endpoint, skipping token verification.")
-            return
 
     for endpoint, methods in public_endpoints.items():
         if request.path.startswith(endpoint) and request.method in methods:
@@ -1147,23 +1140,8 @@ def delete_all_karaoke_signups():
         return jsonify({"error": str(e)}), 500
 @app.route("/karaokesignup", methods=["GET"])
 def get_all_karaoke_signups():
-    search_query = request.args.get("search", "").strip()  # Get search parameter
-
-    # Base query: Only return non-deleted signups
-    query = Karaoke.query.filter_by(is_deleted=False).order_by(Karaoke.position.asc())
-
-    # If a search term is provided, filter by name, song, or artist
-    if search_query:
-        query = query.filter(
-            (Karaoke.name.ilike(f"%{search_query}%")) |
-            (Karaoke.song.ilike(f"%{search_query}%")) |
-            (Karaoke.artist.ilike(f"%{search_query}%"))
-        )
-
-    signups = query.all()  # Fetch results
-
+    signups = Karaoke.query.filter_by(is_deleted=False).order_by(Karaoke.position.asc()).all()
     return jsonify([signup.to_dict() for signup in signups]), 200
-
 
 @app.route("/karaokesignup/<int:id>", methods=["GET"])
 def get_karaoke_signup(id):
