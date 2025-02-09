@@ -1187,19 +1187,35 @@ def get_karaoke_signup(id):
 def get_deleted_karaoke_signups():
     deleted_signups = Karaoke.query.filter_by(is_deleted=True).all()
     return jsonify([signup.to_dict() for signup in deleted_signups]), 200
+
 @app.route("/karaokesignup/<int:id>/soft_delete", methods=["PATCH"])
 def soft_delete_karaoke_signup(id):
+    """Soft deletes a signup and updates positions"""
     entry = Karaoke.query.get(id)
 
     if not entry:
         return jsonify({"error": "Signup not found"}), 404
 
-    entry.is_deleted = True  # Mark as deleted
-    db.session.query(Karaoke).filter_by(id=id).update({"is_deleted": True})  # Ensure update
-    db.session.commit()  # ✅ Ensure changes are saved
+    # Mark entry as deleted
+    entry.is_deleted = True
+    db.session.query(Karaoke).filter_by(id=id).update({"is_deleted": True})
+    db.session.commit()
 
-    print(f"Signup {id} marked as deleted.")  # ✅ Debugging log
-    return jsonify({"message": f"Signup {id} soft deleted successfully"}), 200
+    print(f"Signup {id} marked as deleted.")  # Debugging log
+
+    # Re-fetch remaining signups that are NOT deleted
+    signups = Karaoke.query.filter_by(is_deleted=False).order_by(Karaoke.position).all()
+
+    # Recalculate positions (ensure no gaps in order)
+    for i, signup in enumerate(signups):
+        signup.position = i  # Update position sequentially
+        db.session.query(Karaoke).filter_by(id=signup.id).update({"position": i})
+
+    db.session.commit()  # ✅ Save updated positions
+
+    return jsonify({"message": f"Signup {id} soft deleted and positions updated"}), 200
+
+
 @app.route("/karaokesignup/<int:id>/move", methods=["PATCH"])
 def move_karaoke_signup(id):
     print(f"Received request to move signup with ID: {id}")  # Debugging log
