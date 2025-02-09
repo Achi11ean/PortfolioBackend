@@ -56,6 +56,13 @@ def before_request():
     }
     if request.method == 'OPTIONS':
         return  # Let CORS handle it
+       # Remove query parameters from the path to match endpoints correctly
+    path_without_query = request.path.split("?")[0]  
+
+    for endpoint, methods in public_endpoints.items():
+        if path_without_query == endpoint and request.method in methods:
+            print("Public endpoint, skipping token verification.")
+            return
 
     for endpoint, methods in public_endpoints.items():
         if request.path.startswith(endpoint) and request.method in methods:
