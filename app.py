@@ -1027,6 +1027,8 @@ class Karaoke(db.Model):
     artist = db.Column(db.String(200), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.now()) 
     is_flagged = db.Column(db.Boolean, default=False)  
+    is_deleted = db.Column(db.Boolean, default=False)  # New soft delete flag
+
 
     def to_dict(self):
         """Convert the Karaoke entry into a dictionary."""
@@ -1037,8 +1039,22 @@ class Karaoke(db.Model):
             "artist": self.artist,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "is_flagged": self.is_flagged,
+            "is_deleted": self.is_deleted,  # Include soft delete flag
+
 
         }
+
+@app.route("/karaokesignup/<int:id>", methods=["DELETE"])
+def soft_delete_karaoke_signup(id):
+    entry = Karaoke.query.get(id)
+
+    if not entry:
+        return jsonify({"error": "Signup not found"}), 404
+
+    entry.is_deleted = True  # Soft delete instead of removing
+    db.session.commit()
+
+    return jsonify({"message": "Signup soft deleted successfully"}), 200
 
 
 @app.route("/karaokesignup", methods=["POST"])
@@ -1120,14 +1136,31 @@ def delete_all_karaoke_signups():
         return jsonify({"error": str(e)}), 500
 @app.route("/karaokesignup", methods=["GET"])
 def get_all_karaoke_signups():
-    signups = Karaoke.query.all()
+    signups = Karaoke.query.filter_by(is_deleted=False).all()  # Exclude deleted entries
     return jsonify([signup.to_dict() for signup in signups]), 200
+
 @app.route("/karaokesignup/<int:id>", methods=["GET"])
 def get_karaoke_signup(id):
     signup = Karaoke.query.get(id)
     if not signup:
         return jsonify({"error": "Signup not found"}), 404
     return jsonify(signup.to_dict()), 200
+@app.route("/karaokesignup/deleted", methods=["GET"])
+def get_deleted_karaoke_signups():
+    deleted_signups = Karaoke.query.filter_by(is_deleted=True).all()
+    return jsonify([signup.to_dict() for signup in deleted_signups]), 200
+@app.route("/karaokesignup/<int:id>/soft_delete", methods=["PATCH"])
+def soft_delete_karaoke_signup(id):
+    entry = Karaoke.query.get(id)
+
+    if not entry:
+        return jsonify({"error": "Signup not found"}), 404
+
+    entry.is_deleted = True  # Mark as deleted
+    db.session.commit()
+
+    return jsonify({"message": f"Signup {id} soft deleted successfully"}), 200
+
 
 
 class FormState(db.Model):
