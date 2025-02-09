@@ -1140,14 +1140,20 @@ def delete_all_karaoke_signups():
         return jsonify({"error": str(e)}), 500
 @app.route("/karaokesignup", methods=["GET"])
 def get_all_karaoke_signups():
-    search_query = request.args.get("search", "").strip()  # Get search term from query params
+    search_query = request.args.get("search", "").strip()  # Get search parameter
 
+    # Base query: Only return non-deleted signups
     query = Karaoke.query.filter_by(is_deleted=False).order_by(Karaoke.position.asc())
 
-    if search_query:  # If a search term is provided, filter results
-        query = query.filter(Karaoke.name.ilike(f"%{search_query}%"))  # Case-insensitive search
+    # If a search term is provided, filter by name, song, or artist
+    if search_query:
+        query = query.filter(
+            (Karaoke.name.ilike(f"%{search_query}%")) |
+            (Karaoke.song.ilike(f"%{search_query}%")) |
+            (Karaoke.artist.ilike(f"%{search_query}%"))
+        )
 
-    signups = query.all()
+    signups = query.all()  # Fetch results
 
     return jsonify([signup.to_dict() for signup in signups]), 200
 
