@@ -1155,8 +1155,10 @@ def soft_delete_karaoke_signup(id):
         return jsonify({"error": "Signup not found"}), 404
 
     entry.is_deleted = True  # Mark as deleted
-    db.session.commit()
+    db.session.query(Karaoke).filter_by(id=id).update({"is_deleted": True})  # Ensure update
+    db.session.commit()  # ✅ Ensure changes are saved
 
+    print(f"Signup {id} marked as deleted.")  # ✅ Debugging log
     return jsonify({"message": f"Signup {id} soft deleted successfully"}), 200
 
 @app.route("/karaokesignup/<int:id>/move", methods=["PATCH"])
