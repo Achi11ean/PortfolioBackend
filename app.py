@@ -46,7 +46,11 @@ def before_request():
         "/karaokesignup": ["POST", "PATCH", "GET", "DELETE"],
         "/formstate":["POST", "PATCH", "GET"],
         "/karaokesignup/<int:id>/move":["POST", "PATCH", "GET"],
-        "/karaokesignup/deleted": ["GET"]
+        "/karaokesignup/deleted": ["GET"],
+        "/djnotes":["POST", "PATCH", "GET", "DELETE"],
+        "/djnotes/<int:id>":[ "PATCH", "GET", "DELETE"],
+        "/djnotes/<int:id>/hard_delete": ["DELETE"],
+        "/djnotes/deleted":["GET"],
     }
     if request.method == 'OPTIONS':
         return  # Let CORS handle it
@@ -1297,6 +1301,103 @@ def get_form_state():
 
     return jsonify(form_state.to_dict()), 200
 
+
+
+class DJNotes(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    alert_type = db.Column(db.String(50), nullable=False)  # Type of alert
+    alert_details = db.Column(db.Text, nullable=False)  # Description/details of the alert
+    created_at = db.Column(db.DateTime, default=db.func.now())  # Timestamp when alert is created
+    is_active = db.Column(db.Boolean, default=True)  # Allows soft deletion or hiding alerts
+
+    def to_dict(self):
+        """Convert DJ Notes entry into a dictionary."""
+        return {
+            "id": self.id,
+            "alert_type": self.alert_type,
+            "alert_details": self.alert_details,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "is_active": self.is_active,
+        }
+@app.route("/djnotes", methods=["POST"])
+def create_dj_note():
+    data = request.get_json()
+
+    # Validate required fields
+    if not data or "alert_type" not in data or "alert_details" not in data:
+        return jsonify({"error": "Missing required fields"}), 400
+
+    # Create new DJ Note
+    new_note = DJNotes(
+        alert_type=data["alert_type"],
+        alert_details=data["alert_details"],
+    )
+
+    db.session.add(new_note)
+    db.session.commit()
+
+    return jsonify(new_note.to_dict()), 201
+
+@app.route("/djnotes/<int:id>", methods=["PATCH"])
+def update_dj_note(id):
+    data = request.get_json()
+
+    # Fetch the note by ID
+    note = DJNotes.query.get(id)
+    if not note:
+        return jsonify({"error": "DJ Note not found"}), 404
+
+    # Update only provided fields
+    if "alert_type" in data:
+        note.alert_type = data["alert_type"]
+    if "alert_details" in data:
+        note.alert_details = data["alert_details"]
+    if "is_active" in data:
+        note.is_active = data["is_active"]
+
+    db.session.commit()
+    
+    return jsonify(note.to_dict()), 200
+
+@app.route("/djnotes", methods=["GET"])
+def get_all_dj_notes():
+    notes = DJNotes.query.filter_by(is_active=True).order_by(DJNotes.created_at.desc()).all()
+    return jsonify([note.to_dict() for note in notes]), 200
+
+@app.route("/djnotes/deleted", methods=["GET"])
+def get_deleted_dj_notes():
+    deleted_notes = DJNotes.query.filter_by(is_active=False).order_by(DJNotes.created_at.desc()).all()
+    return jsonify([note.to_dict() for note in deleted_notes]), 200
+
+
+@app.route("/djnotes/<int:id>", methods=["GET"])
+def get_dj_note(id):
+    note = DJNotes.query.get(id)
+    if not note:
+        return jsonify({"error": "DJ Note not found"}), 404
+    return jsonify(note.to_dict()), 200
+
+@app.route("/djnotes/<int:id>", methods=["DELETE"])
+def soft_delete_dj_note(id):
+    note = DJNotes.query.get(id)
+    if not note:
+        return jsonify({"error": "DJ Note not found"}), 404
+
+    note.is_active = False  # Soft delete
+    db.session.commit()
+
+    return jsonify({"message": f"DJ Note {id} has been soft deleted"}), 200
+
+@app.route("/djnotes/<int:id>/hard_delete", methods=["DELETE"])
+def hard_delete_dj_note(id):
+    note = DJNotes.query.get(id)
+    if not note:
+        return jsonify({"error": "DJ Note not found"}), 404
+
+    db.session.delete(note)  # Permanently delete
+    db.session.commit()
+
+    return jsonify({"message": f"DJ Note {id} has been permanently deleted"}), 200
 
 
 # Initialize database and run server
