@@ -1370,7 +1370,7 @@ def get_deleted_dj_notes():
     return jsonify([note.to_dict() for note in deleted_notes]), 200
 
 
-@app.route("/djnotes/<int:id>", methods=["GET"])
+@app.route("/djnotesactive/<int:id>", methods=["GET"])
 def get_dj_note(id):
     note = DJNotes.query.get(id)
     if not note:
