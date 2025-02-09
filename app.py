@@ -1228,6 +1228,22 @@ def move_karaoke_signup(id):
     return jsonify({"message": f"Signup moved {action}"}), 200
 
 
+@app.route("/karaokesignup/sort", methods=["PATCH"])
+def sort_karaoke_signups():
+    print("Received request to sort signups by time.")  # Debugging log
+
+    # Fetch all signups, sort by `created_at`
+    signups = Karaoke.query.filter_by(is_deleted=False).order_by(Karaoke.created_at).all()
+
+    # Update positions sequentially
+    for i, signup in enumerate(signups):
+        signup.position = i
+        db.session.query(Karaoke).filter_by(id=signup.id).update({"position": i})
+
+    db.session.commit()
+    print("Signups successfully sorted by time.")  # Debugging log
+
+    return jsonify({"message": "Signups sorted by time"}), 200
 
 
 class FormState(db.Model):
