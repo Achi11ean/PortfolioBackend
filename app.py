@@ -45,7 +45,8 @@ def before_request():
         "/api/bookings/dates": ["GET"],
         "/karaokesignup": ["POST", "PATCH", "GET", "DELETE"],
         "/formstate":["POST", "PATCH", "GET"],
-        "/karaokesignup/<int:id>/move":["POST", "PATCH", "GET"]
+        "/karaokesignup/<int:id>/move":["POST", "PATCH", "GET"],
+        "/karaokesignup/deleted": ["GET"]
     }
     if request.method == 'OPTIONS':
         return  # Let CORS handle it
