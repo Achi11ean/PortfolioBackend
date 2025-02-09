@@ -1133,12 +1133,16 @@ def get_karaoke_signup(id):
 class FormState(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     show_form = db.Column(db.Boolean, default=False)
+    last_updated = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())  # Track updates
+
 
     def to_dict(self):
         """Convert the FormState entry into a dictionary."""
         return {
             "id": self.id,
             "show_form": self.show_form,
+            "last_updated": self.last_updated.isoformat() if self.last_updated else None,  # Include timestamp
+
         }
 @app.route("/formstate", methods=["PATCH"])
 def update_form_state():
@@ -1152,6 +1156,8 @@ def update_form_state():
     # Update the show_form field if provided in request
     if "show_form" in data:
         form_state.show_form = data["show_form"]
+        form_state.last_updated = datetime.utcnow()  # Update timestamp
+
         db.session.commit()
     
     return jsonify(form_state.to_dict())
@@ -1166,7 +1172,7 @@ def get_form_state():
     form_state = FormState.query.first()
 
     if not form_state:
-        # Create a default entry with show_form=False
+        form_state = FormState(show_form=False, last_updated=datetime.utcnow())
         form_state = FormState(show_form=False)
         db.session.add(form_state)
         db.session.commit()
