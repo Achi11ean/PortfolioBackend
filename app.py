@@ -1059,26 +1059,47 @@ def karaokesignup():
 
 @app.route("/karaokesignup/<int:id>", methods=["PATCH"])
 def update_karaoke_signup(id):
-    data = request.get_json()
-    entry = Karaoke.query.get(id)
+    print(f"Received PATCH request for ID: {id}")  # Log request ID
 
+    data = request.get_json()
+    print(f"Request JSON data: {data}")  # Log received JSON data
+
+    entry = Karaoke.query.get(id)
+    
     if not entry:
+        print("Signup not found")  # Log missing entry
         return jsonify({"error": "Signup not found"}), 404
 
     # Update only the provided fields
     if "name" in data:
+        print(f"Updating name: {entry.name} → {data['name']}")
         entry.name = data["name"]
     if "song" in data:
+        print(f"Updating song: {entry.song} → {data['song']}")
         entry.song = data["song"]
     if "artist" in data:
+        print(f"Updating artist: {entry.artist} → {data['artist']}")
         entry.artist = data["artist"]
     if "is_flagged" in data:
+        print(f"Updating is_flagged: {entry.is_flagged} → {data['is_flagged']}")
         entry.is_flagged = data["is_flagged"]
     if "is_form_visible" in data:
+        print(f"Updating is_form_visible: {entry.is_form_visible} → {data['is_form_visible']}")
         entry.is_form_visible = data["is_form_visible"]
 
-    db.session.commit()
-    return jsonify(entry.to_dict()), 200  # Return updated entry
+    try:
+        db.session.commit()
+        print("Database commit successful")  # Log successful commit
+    except Exception as e:
+        db.session.rollback()
+        print(f"Database commit failed: {e}")  # Log database error
+        return jsonify({"error": "Database update failed"}), 500
+
+    updated_entry = entry.to_dict()
+    print(f"Updated entry: {updated_entry}")  # Log final updated entry
+
+    return jsonify(updated_entry), 200
+
 
 @app.route("/karaokesignup/<int:id>", methods=["DELETE"])
 def delete_karaoke_signup(id):
