@@ -48,6 +48,8 @@ def before_request():
         "/karaokesignup/<int:id>/move":["POST", "PATCH", "GET"],
         "/karaokesignup/deleted": ["GET"],
         "/djnotes":["POST", "PATCH", "GET", "DELETE"],
+        "/djnotesactive":["POST", "PATCH", "GET", "DELETE"],
+
         "/djnotes/<int:id>":[ "PATCH", "GET", "DELETE"],
         "/djnotes/<int:id>/hard_delete": ["DELETE"],
         "/djnotes/deleted":["GET"],
