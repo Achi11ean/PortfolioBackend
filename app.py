@@ -1028,7 +1028,7 @@ class Karaoke(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.now()) 
     is_flagged = db.Column(db.Boolean, default=False)  
     is_deleted = db.Column(db.Boolean, default=False)  # New soft delete flag
-
+    position = db.Column(db.Integer, nullable=True)
 
     def to_dict(self):
         """Convert the Karaoke entry into a dictionary."""
@@ -1040,7 +1040,7 @@ class Karaoke(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "is_flagged": self.is_flagged,
             "is_deleted": self.is_deleted,  # Include soft delete flag
-
+            "position": self.position
 
         }
 
@@ -1126,7 +1126,7 @@ def delete_all_karaoke_signups():
         return jsonify({"error": str(e)}), 500
 @app.route("/karaokesignup", methods=["GET"])
 def get_all_karaoke_signups():
-    signups = Karaoke.query.filter_by(is_deleted=False).all()  # Exclude deleted entries
+    signups = Karaoke.query.filter_by(is_deleted=False).order_by(Karaoke.position.asc()).all()
     return jsonify([signup.to_dict() for signup in signups]), 200
 
 @app.route("/karaokesignup/<int:id>", methods=["GET"])
@@ -1150,6 +1150,70 @@ def soft_delete_karaoke_signup(id):
     db.session.commit()
 
     return jsonify({"message": f"Signup {id} soft deleted successfully"}), 200
+
+@app.route("/karaokesignup/<int:id>/move", methods=["PATCH"])
+def move_karaoke_signup(id):
+    data = request.json
+    action = data.get("action")  # "up", "down", "up5", "down5", "up_next", "sort_by_time"
+    
+    entry = Karaoke.query.get(id)
+    if not entry:
+        return jsonify({"error": "Signup not found"}), 404
+
+    # Fetch all signups ordered by position
+    signups = Karaoke.query.filter_by(is_deleted=False).order_by(Karaoke.position).all()
+
+    # Find current position index
+    current_index = next((i for i, s in enumerate(signups) if s.id == id), None)
+    if current_index is None:
+        return jsonify({"error": "Signup not found in ordered list"}), 404
+    
+    if action == "up":
+        new_index = max(0, current_index - 1)
+    elif action == "down":
+        new_index = min(len(signups) - 1, current_index + 1)
+    elif action == "up5":
+        new_index = max(0, current_index - 5)
+    elif action == "down5":
+        new_index = min(len(signups) - 1, current_index + 5)
+    elif action == "to_first":
+        new_index = 0  # Move to first position
+    elif action == "up_next":
+        new_index = min(1, len(signups) - 1)  # Move to second position
+    elif action == "sort_by_time":
+        signups.sort(key=lambda x: x.timestamp)  # Assuming a timestamp field exists
+        for i, signup in enumerate(signups):
+            signup.position = i
+        db.session.commit()
+        return jsonify({"message": "Signups sorted by time"}), 200
+    else:
+        return jsonify({"error": "Invalid action"}), 400
+    
+    if new_index == current_index:
+        return jsonify({"message": "No movement needed"}), 200
+    
+    # Swap positions
+    signups[current_index].position, signups[new_index].position = (
+        signups[new_index].position,
+        signups[current_index].position,
+    )
+    db.session.commit()
+
+    return jsonify({"message": f"Signup moved {action}"}), 200
+
+
+    # Extract the moving entry
+    moving_entry = signups.pop(current_index)
+    
+    # Insert at the new index
+    signups.insert(new_index, moving_entry)
+
+    # Reassign position values
+    for i, signup in enumerate(signups):
+        signup.position = i + 1  # Ensure position starts at 1
+
+    db.session.commit()
+    return jsonify({"message": f"Signup {id} moved {direction}"}), 200
 
 
 
