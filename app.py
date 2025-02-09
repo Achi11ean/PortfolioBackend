@@ -1208,29 +1208,23 @@ def move_karaoke_signup(id):
         print("No movement needed")  # Debugging log
         return jsonify({"message": "No movement needed"}), 200
     
-    # Swap positions
-    print(f"Moving signup {id} from index {current_index} to {new_index}")  # Debugging log
-    signups[current_index].position, signups[new_index].position = (
-        signups[new_index].position,
-        signups[current_index].position,
-    )
-    db.session.commit()
-
-    return jsonify({"message": f"Signup moved {action}"}), 200
-
-
-    # Extract the moving entry
+    # Remove moving entry from current position
     moving_entry = signups.pop(current_index)
     
-    # Insert at the new index
+    # Shift other signups accordingly
+    for i in range(current_index, new_index if new_index > current_index else new_index - 1, -1 if new_index < current_index else 1):
+        signups[i].position = signups[i - 1].position if new_index < current_index else signups[i + 1].position
+    
+    # Insert moving entry in new position
     signups.insert(new_index, moving_entry)
-
-    # Reassign position values
+    moving_entry.position = new_index
+    
+    # Reassign positions sequentially to maintain correct order
     for i, signup in enumerate(signups):
-        signup.position = i + 1  # Ensure position starts at 1
-
+        signup.position = i
+    
     db.session.commit()
-    return jsonify({"message": f"Signup {id} moved {direction}"}), 200
+    return jsonify({"message": f"Signup moved {action}"}), 200
 
 
 
