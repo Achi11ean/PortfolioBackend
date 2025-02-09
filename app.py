@@ -48,11 +48,11 @@ def before_request():
         "/karaokesignup/<int:id>/move":["POST", "PATCH", "GET"],
         "/karaokesignup/deleted": ["GET"],
         "/djnotes":["POST", "PATCH", "GET", "DELETE"],
-        "/djnotesactive":["POST", "PATCH", "GET", "DELETE"],
-
         "/djnotes/<int:id>":[ "PATCH", "GET", "DELETE"],
         "/djnotes/<int:id>/hard_delete": ["DELETE"],
         "/djnotes/deleted":["GET"],
+        "/djnotesactive":["GET"]  # ✅ Added this line
+
     }
     if request.method == 'OPTIONS':
         return  # Let CORS handle it
@@ -1361,7 +1361,7 @@ def update_dj_note(id):
     
     return jsonify(note.to_dict()), 200
 
-@app.route("/djnotes", methods=["GET"])
+@app.route("/djnotesactive", methods=["GET", "OPTIONS"])
 def get_all_dj_notes():
     notes = DJNotes.query.filter_by(is_active=True).order_by(DJNotes.created_at.desc()).all()
     return jsonify([note.to_dict() for note in notes]), 200
@@ -1372,7 +1372,7 @@ def get_deleted_dj_notes():
     return jsonify([note.to_dict() for note in deleted_notes]), 200
 
 
-@app.route("/djnotesactive/<int:id>", methods=["GET"])
+@app.route("/djnotes/<int:id>", methods=["GET"])
 def get_dj_note(id):
     note = DJNotes.query.get(id)
     if not note:
