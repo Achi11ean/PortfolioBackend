@@ -1026,7 +1026,6 @@ class Karaoke(db.Model):
     artist = db.Column(db.String(200), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.now()) 
     is_flagged = db.Column(db.Boolean, default=False)  
-    is_form_visible = db.Column(db.Boolean, default=True) 
 
     def to_dict(self):
         """Convert the Karaoke entry into a dictionary."""
@@ -1037,7 +1036,6 @@ class Karaoke(db.Model):
             "artist": self.artist,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "is_flagged": self.is_flagged,
-            "is_form_visible": self.is_form_visible  # Include form visibility in response
 
         }
 
@@ -1083,9 +1081,6 @@ def update_karaoke_signup(id):
     if "is_flagged" in data:
         print(f"Updating is_flagged: {entry.is_flagged} → {data['is_flagged']}")
         entry.is_flagged = data["is_flagged"]
-    if "is_form_visible" in data:
-        print(f"Updating is_form_visible: {entry.is_form_visible} → {data['is_form_visible']}")
-        entry.is_form_visible = data["is_form_visible"]
 
     try:
         db.session.commit()
@@ -1132,6 +1127,50 @@ def get_karaoke_signup(id):
     if not signup:
         return jsonify({"error": "Signup not found"}), 404
     return jsonify(signup.to_dict()), 200
+
+
+class FormState(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    show_form = db.Column(db.Boolean, default=False)
+
+    def to_dict(self):
+        """Convert the FormState entry into a dictionary."""
+        return {
+            "id": self.id,
+            "show_form": self.show_form,
+        }
+@app.route("/formstate", methods=["PATCH"])
+def update_form_state():
+    """Update the show_form state."""
+    data = request.json
+    form_state = FormState.query.first()  # Get the first (and only) entry
+
+    if not form_state:
+        return jsonify({"error": "Form state not found"}), 404
+
+    # Update the show_form field if provided in request
+    if "show_form" in data:
+        form_state.show_form = data["show_form"]
+        db.session.commit()
+    
+    return jsonify(form_state.to_dict())
+
+# ============================
+#   GET: Fetch form state
+# ============================
+
+@app.route("/formstate", methods=["GET"])
+def get_form_state():
+    """Retrieve the current form state, creating a default entry if none exists."""
+    form_state = FormState.query.first()
+
+    if not form_state:
+        # Create a default entry with show_form=False
+        form_state = FormState(show_form=False)
+        db.session.add(form_state)
+        db.session.commit()
+
+    return jsonify(form_state.to_dict()), 200
 
 
 
