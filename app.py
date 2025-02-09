@@ -1410,6 +1410,16 @@ def hard_delete_dj_note(id):
 
     return jsonify({"message": f"DJ Note {id} has been permanently deleted"}), 200
 
+@app.route("/djnotes/hard_delete_all", methods=["DELETE"])
+def hard_delete_all_dj_notes():
+    """Permanently delete all DJ Notes from the database."""
+    try:
+        num_deleted = DJNotes.query.delete()
+        db.session.commit()
+        return jsonify({"message": f"Successfully deleted {num_deleted} DJ Notes permanently."}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to delete DJ Notes: {str(e)}"}), 500
 
 # Initialize database and run server
 if __name__ == "__main__":
