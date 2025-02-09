@@ -1195,9 +1195,10 @@ def move_karaoke_signup(id):
     elif action == "up_next":
         new_index = min(1, len(signups) - 1)  # Move to second position
     elif action == "sort_by_time":
-        signups.sort(key=lambda x: x.timestamp)  # Assuming a timestamp field exists
+        signups.sort(key=lambda x: x.created_at)  # Assuming a timestamp field exists
         for i, signup in enumerate(signups):
             signup.position = i
+        db.session.query(Karaoke).filter_by(id=signup.id).update({"position": i})
         db.session.commit()
         return jsonify({"message": "Signups sorted by time"}), 200
     else:
@@ -1225,6 +1226,7 @@ def move_karaoke_signup(id):
     
     db.session.commit()
     return jsonify({"message": f"Signup moved {action}"}), 200
+
 
 
 
