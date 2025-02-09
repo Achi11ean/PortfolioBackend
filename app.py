@@ -1040,7 +1040,7 @@ class Karaoke(db.Model):
 
     def to_dict(self):
         """Convert the Karaoke entry into a dictionary."""
-        return {
+        data = {
             "id": self.id,
             "name": self.name,
             "song": self.song,
@@ -1049,9 +1049,9 @@ class Karaoke(db.Model):
             "is_flagged": self.is_flagged,
             "is_deleted": self.is_deleted,  # Include soft delete flag
             "position": self.position
-
         }
-
+        print("Serialized Data Sent to Frontend:", data)  # ✅ Debugging log
+        return data
 
 
 @app.route("/karaokesignup", methods=["POST"])
