@@ -1020,11 +1020,12 @@ def get_booking_dates():
         return jsonify({"error": str(e)}), 500
 
 class Karaoke(db.Model):
-    id = db.Column(db.Integer, primary_key=True)  # Fixed typo
+    id = db.Column(db.Integer, primary_key=True)  
     name = db.Column(db.String(25), nullable=False)
     song = db.Column(db.String(200), nullable=False)
     artist = db.Column(db.String(200), nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.now()) 
+    is_flagged = db.Column(db.Boolean, default=False)  # NEW COLUMN to track issues
 
     def to_dict(self):
         """Convert the Karaoke entry into a dictionary."""
@@ -1033,8 +1034,10 @@ class Karaoke(db.Model):
             "name": self.name,
             "song": self.song,
             "artist": self.artist,
-            "created_at": self.created_at.isoformat() if self.created_at else None
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "is_flagged": self.is_flagged  # Include issue status in response
         }
+
 
 @app.route("/karaokesignup", methods=["POST"])
 def karaokesignup():
@@ -1066,6 +1069,8 @@ def update_karaoke_signup(id):
         entry.song = data["song"]
     if "artist" in data:
         entry.artist = data["artist"]
+    if "is_flagged" in data:
+        entry.is_flagged = data["is_flagged"]
 
     db.session.commit()
     return jsonify(entry.to_dict()), 200  # Return updated entry
