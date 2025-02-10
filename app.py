@@ -1501,7 +1501,7 @@ class Promotions(db.Model):
         print("Serialized Data Sent to Frontend:", data)  # ✅ Debugging log
         return data
 
-
+@app.route("/promotions", methods=["POST"])  # 🎯 Add "POST" explicitly!
 def create_promotion():
     """Create a new promotion"""
     data = request.get_json()
