@@ -60,6 +60,7 @@ def before_request():
         "/promotions":["POST", "PATCH", "GET", "DELETE"],
         "/promotions<int:id>":["POST", "PATCH", "GET", "DELETE"],
         "/karaokesignup/all":["GET"],
+        "/restricted_words":["GET"]
 
     }
     if request.method == 'OPTIONS':
