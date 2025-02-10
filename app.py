@@ -56,6 +56,7 @@ def before_request():
         "/karaokesignup/hard_delete": ["DELETE"],
         "/promotions":["POST", "PATCH", "GET", "DELETE"],
         "/promotions<int:id>":["POST", "PATCH", "GET", "DELETE"],
+        "/karaokesignup/all":["GET"],
 
     }
     if request.method == 'OPTIONS':
@@ -1597,6 +1598,16 @@ def delete_all_promotions():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Database error: {str(e)}"}), 500
+
+@app.route("/karaokesignup/all", methods=["GET"])
+def get_all_signups():
+    """Retrieve all karaoke signups, including soft-deleted ones"""
+    try:
+        signups = Karaoke.query.all()  # ✅ Fetch everything, including soft-deleted
+        return jsonify([signup.to_dict() for signup in signups]), 200
+    except Exception as e:
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
+
 
 # Initialize database and run server
 if __name__ == "__main__":
