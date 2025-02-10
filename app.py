@@ -20,7 +20,10 @@ CORS(app, supports_credentials=True, resources={r"/*": {"origins": os.getenv("CO
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("SQLALCHEMY_DATABASE_URI")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
-
+restricted_words = os.getenv("RESTRICTED_WORDS", "").split(",")
+@app.route('/restricted_words', methods=['GET'])
+def get_restricted_words():
+    return jsonify(restricted_words) 
 # Initialize Extensions
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
