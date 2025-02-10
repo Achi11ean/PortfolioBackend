@@ -55,7 +55,7 @@ def before_request():
         "/karaokesignup/flagged":["GET"],
         "/karaokesignup/hard_delete": ["DELETE"],
         "/promotions":["POST", "PATCH", "GET", "DELETE"],
-        "/promotions/<int:id>":["POST", "PATCH", "GET", "DELETE"],
+        "/promotions<int:id>":["POST", "PATCH", "GET", "DELETE"],
 
     }
     if request.method == 'OPTIONS':
