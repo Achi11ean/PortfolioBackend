@@ -54,6 +54,8 @@ def before_request():
         "/djnotesactive":["GET"],  
         "/karaokesignup/flagged":["GET"],
         "/karaokesignup/hard_delete": ["DELETE"],
+        "/promotions":["POST", "PATCH", "GET", "DELETE"],
+        "/promotions/<int:id>":["POST", "PATCH", "GET", "DELETE"],
 
     }
     if request.method == 'OPTIONS':
@@ -1473,6 +1475,128 @@ def hard_delete_soft_deleted_karaoke_signups():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+
+
+class Promotions(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    event_type = db.Column(db.String(50), nullable=False)  # "performance" or "karaoke"
+    event_date = db.Column(db.DateTime, nullable=False)  # Date and time of event
+    location = db.Column(db.String(255), nullable=False)  # Where the event is happening
+    image_url = db.Column(db.String(500), nullable=True)  # Optional: Photo reference
+    description = db.Column(db.Text, nullable=False)  # Brief event description
+    created_at = db.Column(db.DateTime, default=db.func.now())  # Timestamp when added
+
+    def to_dict(self):
+        """Convert the Promotions entry into a dictionary."""
+        data = {
+            "id": self.id,
+            "event_type": self.event_type,
+            "event_date": self.event_date.isoformat() if self.event_date else None,
+            "location": self.location,
+            "image_url": self.image_url,
+            "description": self.description,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+        print("Serialized Data Sent to Frontend:", data)  # ✅ Debugging log
+        return data
+
+
+def create_promotion():
+    """Create a new promotion"""
+    data = request.get_json()
+
+    required_fields = ["event_type", "event_date", "location", "description"]
+    if not data or not all(field in data for field in required_fields):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    try:
+        new_promotion = Promotions(
+            event_type=data["event_type"],
+            event_date=datetime.fromisoformat(data["event_date"]),
+            location=data["location"],
+            image_url=data.get("image_url"),  # Optional field
+            description=data["description"]
+        )
+        db.session.add(new_promotion)
+        db.session.commit()
+
+        return jsonify(new_promotion.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
+    
+@app.route("/promotions/<int:id>", methods=["PATCH"])
+def update_promotion(id):
+    """Update a promotion"""
+    data = request.get_json()
+
+    promotion = Promotions.query.get(id)
+    if not promotion:
+        return jsonify({"error": "Promotion not found"}), 404
+
+    try:
+        if "event_type" in data:
+            promotion.event_type = data["event_type"]
+        if "event_date" in data:
+            promotion.event_date = datetime.fromisoformat(data["event_date"])
+        if "location" in data:
+            promotion.location = data["location"]
+        if "image_url" in data:
+            promotion.image_url = data["image_url"]
+        if "description" in data:
+            promotion.description = data["description"]
+
+        db.session.commit()
+        return jsonify(promotion.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
+
+@app.route("/promotions", methods=["GET"])
+def get_all_promotions():
+    """Retrieve all promotions"""
+    try:
+        promotions = Promotions.query.all()
+        return jsonify([promo.to_dict() for promo in promotions]), 200
+    except Exception as e:
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
+
+@app.route("/promotions/<int:id>", methods=["GET"])
+def get_promotion(id):
+    """Retrieve a specific promotion by ID"""
+    promotion = Promotions.query.get(id)
+    
+    if not promotion:
+        return jsonify({"error": "Promotion not found"}), 404
+    
+    return jsonify(promotion.to_dict()), 200
+@app.route("/promotions/<int:id>", methods=["DELETE"])
+def delete_promotion(id):
+    """Delete a specific promotion by ID"""
+    promotion = Promotions.query.get(id)
+    
+    if not promotion:
+        return jsonify({"error": "Promotion not found"}), 404
+
+    try:
+        db.session.delete(promotion)
+        db.session.commit()
+        return jsonify({"message": f"Promotion {id} deleted successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
+
+@app.route("/promotions", methods=["DELETE"])
+def delete_all_promotions():
+    """Delete ALL promotions (Hard Delete)"""
+    try:
+        num_deleted = db.session.query(Promotions).delete()
+        db.session.commit()
+        return jsonify({"message": f"Deleted {num_deleted} promotions successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
 
 # Initialize database and run server
 if __name__ == "__main__":
