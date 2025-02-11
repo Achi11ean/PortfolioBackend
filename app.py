@@ -1357,14 +1357,15 @@ def set_pin():
 
     form_state = FormState.query.first()
     if not form_state:
-        form_state = FormState(pin_code=new_pin, show_form=False)
+        # 🚀 Default to opening signups when setting a new PIN
+        form_state = FormState(pin_code=new_pin, show_form=True)  
         db.session.add(form_state)
     else:
         form_state.pin_code = new_pin
-        form_state.show_form = False  # Reset visibility when setting a new PIN
+        form_state.show_form = True  # 🚀 Ensure signups open when setting a PIN
 
     db.session.commit()
-    return jsonify({"message": "PIN set successfully"}), 201
+    return jsonify({"message": "PIN set successfully, signups are now OPEN"}), 201
 
 # ============================
 #   PATCH: Update Existing PIN
@@ -1396,10 +1397,11 @@ def delete_pin():
         return jsonify({"error": "No PIN found"}), 404
 
     form_state.pin_code = None
-    form_state.show_form = False  # Hide form when PIN is deleted
+    form_state.show_form = False  # 👈 Hides form when PIN is deleted
     db.session.commit()
 
     return jsonify({"message": "PIN deleted successfully"}), 200
+
 
 class DJNotes(db.Model):
     id = db.Column(db.Integer, primary_key=True)
