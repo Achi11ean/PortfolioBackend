@@ -60,7 +60,10 @@ def before_request():
         "/promotions":["POST", "PATCH", "GET", "DELETE"],
         "/promotions<int:id>":["POST", "PATCH", "GET", "DELETE"],
         "/karaokesignup/all":["GET"],
-        "/restricted_words":["GET"]
+        "/restricted_words":["GET"], "/formstate": ["GET"], 
+        "/formstate/set_pin": ["POST"], 
+        "/formstate/update_pin": ["PATCH"],  
+        "/formstate/delete_pin": ["DELETE"],  
 
     }
     if request.method == 'OPTIONS':
@@ -1310,57 +1313,91 @@ def sort_karaoke_signups():
 
     return jsonify({"message": "Signups sorted by time"}), 200
 
-
 class FormState(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     show_form = db.Column(db.Boolean, default=False)
-    last_updated = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())  # Track updates
-
+    last_updated = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())  
+    pin_code = db.Column(db.String(4), nullable=True)  # 4-digit PIN stored as a string
 
     def to_dict(self):
         """Convert the FormState entry into a dictionary."""
         return {
             "id": self.id,
             "show_form": self.show_form,
-            "last_updated": self.last_updated.isoformat() if self.last_updated else None,  # Include timestamp
-
+            "last_updated": self.last_updated.isoformat() if self.last_updated else None,
         }
-@app.route("/formstate", methods=["PATCH"])
-def update_form_state():
-    """Update the show_form state."""
-    data = request.json
-    form_state = FormState.query.first()  # Get the first (and only) entry
-
-    if not form_state:
-        return jsonify({"error": "Form state not found"}), 404
-
-    # Update the show_form field if provided in request
-    if "show_form" in data:
-        form_state.show_form = data["show_form"]
-        form_state.last_updated = datetime.utcnow()  # Update timestamp
-
-        db.session.commit()
-    
-    return jsonify(form_state.to_dict())
 
 # ============================
 #   GET: Fetch form state
 # ============================
-
 @app.route("/formstate", methods=["GET"])
 def get_form_state():
     """Retrieve the current form state, creating a default entry if none exists."""
     form_state = FormState.query.first()
-
+    
     if not form_state:
-        form_state = FormState(show_form=False, last_updated=datetime.utcnow())
         form_state = FormState(show_form=False)
         db.session.add(form_state)
         db.session.commit()
 
     return jsonify(form_state.to_dict()), 200
 
+# ============================
+#   POST: Set a New PIN
+# ============================
+@app.route("/formstate/set_pin", methods=["POST"])
+def set_pin():
+    data = request.get_json()
+    new_pin = data.get("pin_code")
 
+    if not new_pin or len(new_pin) != 4 or not new_pin.isdigit():
+        return jsonify({"error": "PIN must be a 4-digit number"}), 400
+
+    form_state = FormState.query.first()
+    if not form_state:
+        form_state = FormState(pin_code=new_pin, show_form=False)
+        db.session.add(form_state)
+    else:
+        form_state.pin_code = new_pin
+        form_state.show_form = False  # Reset visibility when setting a new PIN
+
+    db.session.commit()
+    return jsonify({"message": "PIN set successfully"}), 201
+
+# ============================
+#   PATCH: Update Existing PIN
+# ============================
+@app.route("/formstate/update_pin", methods=["PATCH"])
+def update_pin():
+    data = request.get_json()
+    new_pin = data.get("pin_code")
+
+    if not new_pin or len(new_pin) != 4 or not new_pin.isdigit():
+        return jsonify({"error": "PIN must be a 4-digit number"}), 400
+
+    form_state = FormState.query.first()
+    if not form_state:
+        return jsonify({"error": "No PIN found. Use POST to create one."}), 404
+
+    form_state.pin_code = new_pin
+    db.session.commit()
+    
+    return jsonify({"message": "PIN updated successfully"}), 200
+
+# ============================
+#   DELETE: Remove PIN
+# ============================
+@app.route("/formstate/delete_pin", methods=["DELETE"])
+def delete_pin():
+    form_state = FormState.query.first()
+    if not form_state:
+        return jsonify({"error": "No PIN found"}), 404
+
+    form_state.pin_code = None
+    form_state.show_form = False  # Hide form when PIN is deleted
+    db.session.commit()
+
+    return jsonify({"message": "PIN deleted successfully"}), 200
 
 class DJNotes(db.Model):
     id = db.Column(db.Integer, primary_key=True)
