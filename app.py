@@ -64,6 +64,8 @@ def before_request():
         "/formstate/set_pin": ["POST"], 
         "/formstate/update_pin": ["PATCH"],  
         "/formstate/delete_pin": ["DELETE"],  
+        "/djnotes/reorder": ["PATCH"],
+
 
     }
     if request.method == 'OPTIONS':
@@ -1409,6 +1411,7 @@ class DJNotes(db.Model):
     alert_details = db.Column(db.Text, nullable=False)  # Description/details of the alert
     created_at = db.Column(db.DateTime, default=db.func.now())  # Timestamp when alert is created
     is_active = db.Column(db.Boolean, default=True)  # Allows soft deletion or hiding alerts
+    position = db.Column(db.Integer, nullable=False, default=0)  # NEW: Position for sorting
 
     def to_dict(self):
         """Convert DJ Notes entry into a dictionary."""
@@ -1418,6 +1421,8 @@ class DJNotes(db.Model):
             "alert_details": self.alert_details,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "is_active": self.is_active,
+            "position": self.position,  # Include position in response
+
         }
 @app.route("/djnotes", methods=["POST"])
 def create_dj_note():
@@ -1461,8 +1466,9 @@ def update_dj_note(id):
 
 @app.route("/djnotesactive", methods=["GET"])
 def get_all_dj_notes():
-    notes = DJNotes.query.filter_by(is_active=True).order_by(DJNotes.created_at.desc()).all()
+    notes = DJNotes.query.filter_by(is_active=True).order_by(DJNotes.position).all()
     return jsonify([note.to_dict() for note in notes]), 200
+
 
 @app.route("/djnotes/deleted", methods=["GET"])
 def get_deleted_dj_notes():
@@ -1521,6 +1527,31 @@ def hard_delete_soft_deleted_karaoke_signups():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+@app.route("/djnotes/reorder", methods=["PATCH"])
+def reorder_dj_notes():
+    """Move a specific alert to the top by updating its position."""
+    try:
+        data = request.get_json()
+        if not data or "id" not in data:
+            return jsonify({"error": "Missing note ID"}), 400
+
+        note = DJNotes.query.get(data["id"])
+        if not note:
+            return jsonify({"error": "DJ Note not found"}), 404
+
+        # Get the lowest position (0 means top)
+        min_position = db.session.query(db.func.min(DJNotes.position)).scalar() or 0
+
+        # Move selected alert to the top
+        note.position = min_position - 1
+
+        db.session.commit()
+
+        return jsonify({"message": "DJ Note moved to the top!"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to move DJ Note: {str(e)}"}), 500
 
 
 
