@@ -1539,15 +1539,23 @@ def reorder_dj_notes():
         if not note:
             return jsonify({"error": "DJ Note not found"}), 404
 
-        # Get the lowest position (0 means top)
-        min_position = db.session.query(db.func.min(DJNotes.position)).scalar() or 0
+        # Find the current alert at position 0
+        current_top_note = DJNotes.query.filter_by(position=0).first()
+        if current_top_note and current_top_note.id != note.id:
+            current_top_note.position = db.session.query(db.func.max(DJNotes.position)).scalar() + 1  # Move it down
 
-        # Move selected alert to the top
-        note.position = min_position - 1
+        # Move selected alert to position 0
+        note.position = 0
 
-        db.session.commit()
+        db.session.commit()  # ✅ Save both updates
 
-        return jsonify({"message": "DJ Note moved to the top!"}), 200
+        print(f"✅ Moved '{note.alert_type}' (ID {note.id}) to position 0")
+        return jsonify({"message": "DJ Note moved to the top!", "id": note.id, "new_position": note.position}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to move DJ Note: {str(e)}"}), 500
+
 
     except Exception as e:
         db.session.rollback()
