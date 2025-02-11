@@ -1325,6 +1325,8 @@ class FormState(db.Model):
             "id": self.id,
             "show_form": self.show_form,
             "last_updated": self.last_updated.isoformat() if self.last_updated else None,
+            "pin_code": self.pin_code,  # ✅ Include this to fix the issue
+
         }
 
 # ============================
