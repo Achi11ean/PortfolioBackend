@@ -1128,9 +1128,15 @@ def update_karaoke_signup(id):
     if "is_flagged" in data:
         print(f"🚩 Updating is_flagged: {entry.is_flagged} → {data['is_flagged']}")
         entry.is_flagged = data["is_flagged"]
-    if "is_warning" in data:  # ✅ Fix: Handle `is_warning`
-        print(f"⚠️ Updating is_warning: {entry.is_warning} → {data['is_warning']}")
-        entry.is_warning = data["is_warning"]
+    if "is_warning" in data:
+        new_warning_status = data["is_warning"]
+        if entry.is_warning != new_warning_status:
+            print(f"⚠️ Updating is_warning: {entry.is_warning} → {new_warning_status}")
+            entry.is_warning = new_warning_status
+            db.session.commit()  # Ensure commit
+        else:
+            print("⚠️ No change detected in is_warning, skipping update.")
+
 
     try:
         db.session.commit()
