@@ -68,7 +68,7 @@ def before_request():
         "/djnotes/reorder": ["PATCH"],
         "/karaokesignup/count":["GET"],
         "/music-break":["GET", "PATCH"],
-        "karaokesignup/signer_counts":["GET"]
+        "/karaokesignup/singer_counts":["GET"]
 
 
     }
@@ -1335,19 +1335,25 @@ def sort_karaoke_signups():
     return jsonify({"message": "Signups sorted by time"}), 200
 
 
+
 @app.route("/karaokesignup/singer_counts", methods=["GET"])
 def get_singer_counts():
-    """Retrieve the number of times each singer has performed throughout the entire night, including deleted entries."""
+    """Retrieve the number of times each singer has performed throughout the entire night, including deleted entries, along with their songs."""
     results = (
-        db.session.query(Karaoke.name, func.count(Karaoke.id))
+        db.session.query(Karaoke.name, func.count(Karaoke.id), func.array_agg(Karaoke.song))
         .group_by(Karaoke.name)
         .order_by(func.count(Karaoke.id).desc())  # Order by most performances
         .all()
     )
 
-    singer_counts = [{"name": name, "count": count} for name, count in results]
+    # Format data into a structured JSON response
+    singer_counts = [
+        {"name": name, "count": count, "songs": list(set(songs))}  # Remove duplicate songs if any
+        for name, count, songs in results
+    ]
 
     return jsonify(singer_counts), 200
+
 
 
 
