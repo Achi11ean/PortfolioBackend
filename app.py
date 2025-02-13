@@ -60,13 +60,14 @@ def before_request():
         "/promotions":["POST", "PATCH", "GET", "DELETE"],
         "/promotions<int:id>":["POST", "PATCH", "GET", "DELETE"],
         "/karaokesignup/all":["GET"],
-        "/restricted_words":["GET"], "/formstate": ["GET"], 
+        "/restricted_words":["GET"],
+        "/formstate": ["GET"], 
         "/formstate/set_pin": ["POST"], 
         "/formstate/update_pin": ["PATCH"],  
         "/formstate/delete_pin": ["DELETE"],  
         "/djnotes/reorder": ["PATCH"],
         "/karaokesignup/count":["GET"],
-        "/music-break":["GET"],
+        "/music-break":["GET", "PATCH"],
 
 
     }
