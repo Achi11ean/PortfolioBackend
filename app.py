@@ -1052,6 +1052,8 @@ class Karaoke(db.Model):
     is_flagged = db.Column(db.Boolean, default=False)  
     is_deleted = db.Column(db.Boolean, default=False)  # New soft delete flag
     position = db.Column(db.Integer, nullable=True)
+    is_warning = db.Column(db.Boolean, default=False)  # ✅ New Warning Column
+
 
     def to_dict(self):
         """Convert the Karaoke entry into a dictionary."""
@@ -1063,7 +1065,9 @@ class Karaoke(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "is_flagged": self.is_flagged,
             "is_deleted": self.is_deleted,  # Include soft delete flag
-            "position": self.position
+            "position": self.position,
+            "is_warning": self.is_warning  # ✅ Include in API response
+
         }
         print("Serialized Data Sent to Frontend:", data)  # ✅ Debugging log
         return data
@@ -1109,7 +1113,7 @@ def update_karaoke_signup(id):
         print("❌ Signup not found!")  # Log missing entry
         return jsonify({"error": "Signup not found"}), 404
 
-    print(f"🔄 BEFORE UPDATE → ID: {entry.id}, Name: {entry.name}, is_flagged: {entry.is_flagged}")  
+    print(f"🔄 BEFORE UPDATE → ID: {entry.id}, Name: {entry.name}, is_flagged: {entry.is_flagged}, Is warning: {entry.is_warning}")  
 
     # Update only the provided fields
     if "name" in data:
@@ -1124,6 +1128,9 @@ def update_karaoke_signup(id):
     if "is_flagged" in data:
         print(f"🚩 Updating is_flagged: {entry.is_flagged} → {data['is_flagged']}")
         entry.is_flagged = data["is_flagged"]
+    if "is_warning" in data:  # ✅ Fix: Handle `is_warning`
+        print(f"⚠️ Updating is_warning: {entry.is_warning} → {data['is_warning']}")
+        entry.is_warning = data["is_warning"]
 
     try:
         db.session.commit()
