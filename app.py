@@ -7,7 +7,7 @@ import jwt
 from datetime import datetime, timedelta
 from functools import wraps
 from flask_cors import CORS
-from sqlalchemy import extract  # To filter by month
+from sqlalchemy import extract, func  # To filter by month
 from dotenv import load_dotenv
 import os
 
@@ -68,6 +68,7 @@ def before_request():
         "/djnotes/reorder": ["PATCH"],
         "/karaokesignup/count":["GET"],
         "/music-break":["GET", "PATCH"],
+        "karaokesignup/signer_counts":["GET"]
 
 
     }
@@ -1332,6 +1333,24 @@ def sort_karaoke_signups():
     print("Signups successfully sorted by time.")  # Debugging log
 
     return jsonify({"message": "Signups sorted by time"}), 200
+
+
+@app.route("/karaokesignup/singer_counts", methods=["GET"])
+def get_singer_counts():
+    """Retrieve the number of times each singer has performed throughout the entire night, including deleted entries."""
+    results = (
+        db.session.query(Karaoke.name, func.count(Karaoke.id))
+        .group_by(Karaoke.name)
+        .order_by(func.count(Karaoke.id).desc())  # Order by most performances
+        .all()
+    )
+
+    singer_counts = [{"name": name, "count": count} for name, count in results]
+
+    return jsonify(singer_counts), 200
+
+
+
 
 class FormState(db.Model):
     id = db.Column(db.Integer, primary_key=True)
