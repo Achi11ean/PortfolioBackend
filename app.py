@@ -65,6 +65,7 @@ def before_request():
         "/formstate/update_pin": ["PATCH"],  
         "/formstate/delete_pin": ["DELETE"],  
         "/djnotes/reorder": ["PATCH"],
+        "/karaokesignup/count":["GET"]
 
 
     }
@@ -1140,10 +1141,11 @@ def update_karaoke_signup(id):
         return jsonify({"error": "Database update failed"}), 500
 
 
-    updated_entry = entry.to_dict()
-    print(f"Updated entry: {updated_entry}")  # Log final updated entry
-
-    return jsonify(updated_entry), 200
+@app.route("/karaokesignup/count", methods=["GET"])
+def get_active_karaoke_count():
+    """Retrieve the total number of active (not soft deleted) karaoke submissions."""
+    active_count = Karaoke.query.filter_by(is_deleted=False).count()
+    return jsonify({"active_count": active_count}), 200
 
 
 @app.route("/karaokesignup/<int:id>", methods=["DELETE"])
