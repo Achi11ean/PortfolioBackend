@@ -1055,7 +1055,9 @@ class Karaoke(db.Model):
     is_flagged = db.Column(db.Boolean, default=False)  
     is_deleted = db.Column(db.Boolean, default=False)  # New soft delete flag
     position = db.Column(db.Integer, nullable=True)
-    is_warning = db.Column(db.Boolean, default=False)  # ✅ New Warning Column
+    is_warning = db.Column(db.Boolean, default=False)  
+    adjustment = db.Column(db.Float, nullable=True, default=0.0)
+
 
 
     def to_dict(self):
@@ -1069,7 +1071,8 @@ class Karaoke(db.Model):
             "is_flagged": self.is_flagged,
             "is_deleted": self.is_deleted,  # Include soft delete flag
             "position": self.position,
-            "is_warning": self.is_warning  # ✅ Include in API response
+            "is_warning": self.is_warning, 
+            "adjustment": self.adjustment 
 
         }
         print("Serialized Data Sent to Frontend:", data)  # ✅ Debugging log
@@ -1090,12 +1093,19 @@ def karaokesignup():
     # Get the next available position
     max_position = db.session.query(db.func.max(Karaoke.position)).scalar()
     next_position = (max_position + 1) if max_position is not None else 1  # Start from 1 if empty
+    adjustment = data.get("adjustment", 0.0)
+    try:
+        adjustment = float(adjustment)  # Ensure it's a valid float
+    except ValueError:
+        return jsonify({"error": "Invalid adjustment value. Must be a number."}), 400
+
 
     new_entry = Karaoke(
         name=data["name"],
         song=data["song"],
         artist=data["artist"],
-        position=next_position  # Assign a valid position
+        position=next_position,
+        adjustment=adjustment
     )
     db.session.add(new_entry)
     db.session.commit()
@@ -1138,8 +1148,15 @@ def update_karaoke_signup(id):
             entry.is_warning = new_warning_status
             db.session.commit()  # Ensure commit
         else:
-            print("⚠️ No change detected in is_warning, skipping update.")
-
+                print("⚠️ No change detected in is_warning, skipping update.")
+    if "adjustment" in data:
+            try:
+                new_adjustment = float(data["adjustment"])  # Convert to float
+                print(f"⚖️ Updating adjustment: {entry.adjustment} → {new_adjustment}")
+                entry.adjustment = new_adjustment
+            except ValueError:
+                print("❌ Invalid adjustment value provided.")
+                return jsonify({"error": "Invalid adjustment value. Must be a number."}), 400
 
     try:
         db.session.commit()
