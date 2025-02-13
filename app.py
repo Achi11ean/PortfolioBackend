@@ -65,7 +65,8 @@ def before_request():
         "/formstate/update_pin": ["PATCH"],  
         "/formstate/delete_pin": ["DELETE"],  
         "/djnotes/reorder": ["PATCH"],
-        "/karaokesignup/count":["GET"]
+        "/karaokesignup/count":["GET"],
+        "/music-break":["GET"],
 
 
     }
@@ -1098,43 +1099,62 @@ def karaokesignup():
     db.session.commit()
 
     return jsonify(new_entry.to_dict()), 201
+
+
 @app.route("/karaokesignup/<int:id>", methods=["PATCH"])
 def update_karaoke_signup(id):
-    print(f"\n🟡 Received PATCH request for ID: {id}")  
+    print(f"🟡 Received PATCH request for ID: {id}")  # Log request ID
 
     data = request.get_json()
-    print(f"🔍 Request JSON data: {data}")  
+    print(f"🔍 Request JSON data: {data}")  # Log received JSON data
 
     entry = Karaoke.query.get(id)
     
     if not entry:
-        print("❌ Signup not found!")  
+        print("❌ Signup not found!")  # Log missing entry
         return jsonify({"error": "Signup not found"}), 404
 
-    print(f"🔄 BEFORE UPDATE → ID: {entry.id}, Name: {entry.name}, is_flagged: {entry.is_flagged}, is_warning: {entry.is_warning}")  
+    print(f"🔄 BEFORE UPDATE → ID: {entry.id}, Name: {entry.name}, is_flagged: {entry.is_flagged}, Is warning: {entry.is_warning}")  
 
-    # ✅ Debugging - Print if 'is_warning' exists in incoming request
+    # Update only the provided fields
+    if "name" in data:
+        print(f"✏️ Updating name: {entry.name} → {data['name']}")
+        entry.name = data["name"]
+    if "song" in data:
+        print(f"🎵 Updating song: {entry.song} → {data['song']}")
+        entry.song = data["song"]
+    if "artist" in data:
+        print(f"🎤 Updating artist: {entry.artist} → {data['artist']}")
+        entry.artist = data["artist"]
+    if "is_flagged" in data:
+        print(f"🚩 Updating is_flagged: {entry.is_flagged} → {data['is_flagged']}")
+        entry.is_flagged = data["is_flagged"]
     if "is_warning" in data:
-        print(f"⚠️ Updating is_warning: {entry.is_warning} → {data['is_warning']}")
-        entry.is_warning = data["is_warning"]
-    else:
-        print("🚨 'is_warning' key is MISSING from the request JSON")
+        new_warning_status = data["is_warning"]
+        if entry.is_warning != new_warning_status:
+            print(f"⚠️ Updating is_warning: {entry.is_warning} → {new_warning_status}")
+            entry.is_warning = new_warning_status
+            db.session.commit()  # Ensure commit
+        else:
+            print("⚠️ No change detected in is_warning, skipping update.")
+
 
     try:
         db.session.commit()
-        db.session.refresh(entry)  # 🔥 Force refresh from DB
-        db.session.expire_all()    # 🔥 Expire session cache (prevents stale data)
+        print("✅ Database commit successful!")  
 
         # 🔥 FETCH FROM DATABASE AGAIN TO CHECK IF IT REALLY SAVED
         updated_entry = Karaoke.query.get(id)
-        print(f"🔍 AFTER COMMIT → ID: {updated_entry.id}, is_warning: {updated_entry.is_warning}")
+        print(f"🔍 AFTER COMMIT → ID: {updated_entry.id}, is_flagged: {updated_entry.is_flagged}")
 
-        return jsonify(updated_entry.to_dict()), 200  
+        return jsonify(updated_entry.to_dict()), 200  # Return updated entry
 
     except Exception as e:
         db.session.rollback()
         print(f"❌ Database commit failed: {e}")  
         return jsonify({"error": "Database update failed"}), 500
+
+
 
 @app.route("/karaokesignup/count", methods=["GET"])
 def get_active_karaoke_count():
@@ -1688,6 +1708,53 @@ def get_all_signups():
         return jsonify([signup.to_dict() for signup in signups]), 200
     except Exception as e:
         return jsonify({"error": f"Database error: {str(e)}"}), 500
+
+
+
+
+class MusicBreakState(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    show_alert = db.Column(db.Boolean, default=False)
+    last_updated = db.Column(db.DateTime, default=db.func.now(), onupdate=db.func.now())
+
+    def to_dict(self):
+        """Convert the MusicBreakState entry into a dictionary."""
+        return {
+            "id": self.id,
+            "show_alert": self.show_alert,
+            "last_updated": self.last_updated.isoformat() if self.last_updated else None,
+        }
+
+
+@app.route("/music-break", methods=["GET"])
+def get_music_break_state():
+    state = MusicBreakState.query.first()
+    if not state:
+        # Create default state if none exists
+        state = MusicBreakState()
+        db.session.add(state)
+        db.session.commit()
+    
+    return jsonify(state.to_dict()), 200
+
+@app.route("/music-break", methods=["PATCH"])
+def toggle_music_break():
+    state = MusicBreakState.query.first()
+    if not state:
+        return jsonify({"error": "MusicBreakState not found"}), 404
+
+    data = request.get_json()
+    
+    if "show_alert" in data:
+        state.show_alert = data["show_alert"]  # Toggle based on request body
+        state.last_updated = datetime.utcnow()
+        db.session.commit()
+        return jsonify(state.to_dict()), 200
+
+    return jsonify({"error": "Invalid request"}), 400
+
+
+
 
 
 # Initialize database and run server
