@@ -1365,7 +1365,7 @@ def sort_karaoke_signups():
 def get_singer_counts():
     """Retrieve the number of times each singer has performed throughout the entire night, including deleted entries, along with their songs."""
     results = (
-        db.session.query(Karaoke.name, func.count(Karaoke.id), func.array_agg(Karaoke.song))
+        db.session.query(Karaoke.name, func.count(Karaoke.id), func.group_concat(Karaoke.song, ', '))
         .group_by(Karaoke.name)
         .order_by(func.count(Karaoke.id).desc())  # Order by most performances
         .all()
@@ -1373,12 +1373,11 @@ def get_singer_counts():
 
     # Format data into a structured JSON response
     singer_counts = [
-        {"name": name, "count": count, "songs": list(set(songs))}  # Remove duplicate songs if any
+        {"name": name, "count": count, "songs": songs.split(", ") if songs else []}  
         for name, count, songs in results
     ]
 
     return jsonify(singer_counts), 200
-
 
 
 
