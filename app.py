@@ -1112,7 +1112,6 @@ def karaokesignup():
 
     return jsonify(new_entry.to_dict()), 201
 
-
 @app.route("/karaokesignup/<int:id>", methods=["PATCH"])
 def update_karaoke_signup(id):
     print(f"🟡 Received PATCH request for ID: {id}")  # Log request ID
@@ -1128,54 +1127,60 @@ def update_karaoke_signup(id):
 
     print(f"🔄 BEFORE UPDATE → ID: {entry.id}, Name: {entry.name}, is_flagged: {entry.is_flagged}, Is warning: {entry.is_warning}")  
 
+    # Track if any updates are made
+    changes_made = False
+
     # Update only the provided fields
-    if "name" in data:
+    if "name" in data and entry.name != data["name"]:
         print(f"✏️ Updating name: {entry.name} → {data['name']}")
         entry.name = data["name"]
-    if "song" in data:
+        changes_made = True
+    if "song" in data and entry.song != data["song"]:
         print(f"🎵 Updating song: {entry.song} → {data['song']}")
         entry.song = data["song"]
-    if "artist" in data:
+        changes_made = True
+    if "artist" in data and entry.artist != data["artist"]:
         print(f"🎤 Updating artist: {entry.artist} → {data['artist']}")
         entry.artist = data["artist"]
-    if "is_flagged" in data:
+        changes_made = True
+    if "is_flagged" in data and entry.is_flagged != data["is_flagged"]:
         print(f"🚩 Updating is_flagged: {entry.is_flagged} → {data['is_flagged']}")
         entry.is_flagged = data["is_flagged"]
-        db.session.commit()  # ✅ Ensure commit immediately
-        print(f"✅ Confirmed update: is_flagged = {entry.is_flagged}")  # Debugging
-
-    if "is_warning" in data:
-        new_warning_status = data["is_warning"]
-        if entry.is_warning != new_warning_status:
-            print(f"⚠️ Updating is_warning: {entry.is_warning} → {new_warning_status}")
-            entry.is_warning = new_warning_status
-            db.session.commit()  # Ensure commit
-        else:
-                print("⚠️ No change detected in is_warning, skipping update.")
+        changes_made = True
+    if "is_warning" in data and entry.is_warning != data["is_warning"]:
+        print(f"⚠️ Updating is_warning: {entry.is_warning} → {data['is_warning']}")
+        entry.is_warning = data["is_warning"]
+        changes_made = True
     if "adjustment" in data:
-            try:
-                new_adjustment = float(data["adjustment"])  # Convert to float
+        try:
+            new_adjustment = float(data["adjustment"])
+            if entry.adjustment != new_adjustment:
                 print(f"⚖️ Updating adjustment: {entry.adjustment} → {new_adjustment}")
                 entry.adjustment = new_adjustment
-            except ValueError:
-                print("❌ Invalid adjustment value provided.")
-                return jsonify({"error": "Invalid adjustment value. Must be a number."}), 400
+                changes_made = True
+        except ValueError:
+            print("❌ Invalid adjustment value provided.")
+            return jsonify({"error": "Invalid adjustment value. Must be a number."}), 400
 
-    try:
-        db.session.commit()
-        print("✅ Database commit successful!")  
+    # Commit only if changes were made
+    if changes_made:
+        try:
+            db.session.commit()
+            print("✅ Database commit successful!")  
 
-        # 🔥 FETCH FROM DATABASE AGAIN TO CHECK IF IT REALLY SAVED
-        updated_entry = Karaoke.query.get(id)
-        print(f"🔍 AFTER COMMIT → ID: {updated_entry.id}, is_flagged: {updated_entry.is_flagged}")
+            # Fetch the updated entry
+            updated_entry = Karaoke.query.get(id)
+            print(f"🔍 AFTER COMMIT → ID: {updated_entry.id}, is_flagged: {updated_entry.is_flagged}")
 
-        return jsonify(updated_entry.to_dict()), 200  # Return updated entry
+            return jsonify(updated_entry.to_dict()), 200  # Return updated entry
 
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ Database commit failed: {e}")  
-        return jsonify({"error": "Database update failed"}), 500
-
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ Database commit failed: {e}")  
+            return jsonify({"error": "Database update failed"}), 500
+    else:
+        print("⚠️ No changes detected, returning current state.")
+        return jsonify({"is_flagged": entry.is_flagged, "is_warning": entry.is_warning}), 200  # ✅ Return correct data even if no change
 
 
 @app.route("/karaokesignup/count", methods=["GET"])
