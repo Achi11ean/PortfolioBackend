@@ -1141,6 +1141,8 @@ def update_karaoke_signup(id):
     if "is_flagged" in data:
         print(f"🚩 Updating is_flagged: {entry.is_flagged} → {data['is_flagged']}")
         entry.is_flagged = data["is_flagged"]
+        updated = True  # ✅ Mark as updated
+
     if "is_warning" in data:
         new_warning_status = data["is_warning"]
         if entry.is_warning != new_warning_status:
