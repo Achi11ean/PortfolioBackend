@@ -1372,7 +1372,11 @@ def sort_karaoke_signups():
 def get_singer_counts():
     """Retrieve the number of times each singer has performed throughout the entire night, including deleted entries, along with their songs."""
     results = (
-        db.session.query(Karaoke.name, func.count(Karaoke.id), func.group_concat(Karaoke.song, ', '))
+        db.session.query(
+            Karaoke.name, 
+            func.count(Karaoke.id), 
+            func.string_agg(Karaoke.song, ', ')
+        )
         .group_by(Karaoke.name)
         .order_by(func.count(Karaoke.id).desc())  # Order by most performances
         .all()
@@ -1385,7 +1389,6 @@ def get_singer_counts():
     ]
 
     return jsonify(singer_counts), 200
-
 
 
 
