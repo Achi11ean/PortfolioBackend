@@ -296,6 +296,7 @@ def get_reviews():
     try:
         # Fetch only approved reviews
         query = Review.query.filter_by(is_approved=True)
+        print("Fetched Reviews:", [r.to_dict() for r in reviews])  # ✅ Debugging
 
         # Apply search filter if 'service' is provided
         if search_term:
