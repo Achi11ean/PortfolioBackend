@@ -1186,9 +1186,20 @@ def update_karaoke_signup(id):
 
 @app.route("/karaokesignup/count", methods=["GET"])
 def get_active_karaoke_count():
-    """Retrieve the total number of active (not soft deleted) karaoke submissions."""
-    active_count = Karaoke.query.filter_by(is_deleted=False).count()
-    return jsonify({"active_count": active_count}), 200
+    """Retrieve the number of active (not soft deleted) karaoke submissions for a specific singer."""
+    singer_name = request.args.get("name", "").strip()
+
+    if not singer_name:
+        # Return total count if no specific name is provided
+        active_count = Karaoke.query.filter(Karaoke.is_deleted == False).count()
+        return jsonify({"active_count": active_count}), 200
+
+    # Count active (non-deleted) signups for the specific singer
+    active_singer_count = Karaoke.query.filter(
+        Karaoke.name.ilike(singer_name), Karaoke.is_deleted == False
+    ).count()
+
+    return jsonify({"active_count": active_singer_count}), 200
 
 
 @app.route("/karaokesignup/<int:id>", methods=["DELETE"])
