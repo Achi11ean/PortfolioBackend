@@ -68,7 +68,8 @@ def before_request():
         "/djnotes/reorder": ["PATCH"],
         "/karaokesignup/count":["GET"],
         "/music-break":["GET", "PATCH"],
-        "/karaokesignup/singer_counts":["GET"]
+        "/karaokesignup/singer_counts":["GET"],
+        "/karaokesignup/active":["GET"]
 
 
     }
@@ -1270,6 +1271,12 @@ def soft_delete_karaoke_signup(id):
     db.session.commit()  # ✅ Save updated positions
 
     return jsonify({"message": f"Signup {id} soft deleted and positions updated"}), 200
+
+@app.route("/karaokesignup/active", methods=["GET"])
+def get_active_karaoke_signups():
+    """Retrieve all active (not soft deleted) karaoke signups."""
+    active_signups = Karaoke.query.filter_by(is_deleted=False).all()
+    return jsonify([signup.to_dict() for signup in active_signups]), 200
 
 
 @app.route("/karaokesignup/<int:id>/move", methods=["PATCH"])
