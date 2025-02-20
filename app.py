@@ -69,7 +69,8 @@ def before_request():
         "/karaokesignup/count":["GET"],
         "/music-break":["GET", "PATCH"],
         "/karaokesignup/singer_counts":["GET"],
-        "/karaokesignup/active":["GET"]
+        "/karaokesignup/active":["GET"],
+        "/karaokesettings": ["GET","PATCH"]
 
 
     }
@@ -1826,6 +1827,38 @@ def toggle_music_break():
     return jsonify({"error": "Invalid request"}), 400
 
 
+
+class KaraokeSettings(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    max_songs_per_singer = db.Column(db.Integer, default=1)  # Default to 1 song per singer
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "max_songs_per_singer": self.max_songs_per_singer
+        }
+
+@app.route("/karaokesettings", methods=["GET"])
+def get_karaoke_settings():
+    settings = KaraokeSettings.query.first()
+    if not settings:
+        settings = KaraokeSettings(max_songs_per_singer=1)
+        db.session.add(settings)
+        db.session.commit()
+    return jsonify(settings.to_dict()), 200
+
+@app.route("/karaokesettings", methods=["PATCH"])
+def update_karaoke_settings():
+    data = request.get_json()
+    settings = KaraokeSettings.query.first()
+    if not settings:
+        settings = KaraokeSettings()
+        db.session.add(settings)
+    
+    if "max_songs_per_singer" in data:
+        settings.max_songs_per_singer = data["max_songs_per_singer"]
+    db.session.commit()
+    return jsonify(settings.to_dict()), 200
 
 
 
