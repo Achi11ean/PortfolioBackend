@@ -289,25 +289,24 @@ def get_pending_reviews():
 
 @app.route('/reviews', methods=['GET'])
 def get_reviews():
-    """
-    Fetch approved reviews. Optional filter by service using query parameter.
-    """
     search_term = request.args.get('service', '').strip()
 
     try:
         # Fetch only approved reviews
         query = Review.query.filter_by(is_approved=True)
-        print("Fetched Reviews:", [r.to_dict() for r in reviews])  # ✅ Debugging
 
         # Apply search filter if 'service' is provided
         if search_term:
             query = query.filter(Review.service.ilike(f"%{search_term}%"))
 
-        reviews = query.all()
+        reviews = query.all()  # ✅ Fetch reviews here first
+        print("Fetched Reviews:", [r.to_dict() for r in reviews])  # ✅ Then debug here
+
         return jsonify([review.to_dict() for review in reviews]), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 @app.route('/bookings/all', methods=['GET'])
