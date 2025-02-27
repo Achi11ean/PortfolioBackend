@@ -900,13 +900,6 @@ def aggregate_income():
                 })
 
         # Karaoke Hosting
-        for kara in karaoke_hostings:
-            if kara.payment_amount:
-                income_list.append({
-                    "source": "Karaoke Hosting",
-                    "name": kara.company_name,
-                    "amount": kara.payment_amount
-                })
 
         # Calculate total income
         total_income = sum(item['amount'] for item in income_list)
