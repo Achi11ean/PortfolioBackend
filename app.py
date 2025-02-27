@@ -419,26 +419,30 @@ def delete_contact(id):
     return jsonify({"message": "Contact booking deleted successfully"}), 200
 # Engineering Booking model
 
-
 class EngineeringBooking(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    contact = db.Column(db.String(120), nullable=False)
+    contact = db.Column(db.String(120), nullable=False)  # Stores contact name
+    contact_phone = db.Column(db.String(20), nullable=True)  # ✅ New field for phone
     project_name = db.Column(db.String(120), nullable=False)
     project_description = db.Column(db.Text, nullable=True)
     price = db.Column(db.Float, nullable=True)
     status = db.Column(db.String(50), nullable=False, default="Pending")
+    notes = db.Column(db.Text, nullable=True)  # ✅ New field for additional notes
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {
             "id": self.id,
             "contact": self.contact,
+            "contact_phone": self.contact_phone,  # ✅ Include phone
             "project_name": self.project_name,
             "project_description": self.project_description,
             "price": self.price,
             "status": self.status,
+            "notes": self.notes,  # ✅ Include notes
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S")
         }
+
 
 
 @app.route('/engineering-bookings', methods=['POST'])
@@ -446,16 +450,18 @@ def save_engineering_booking():
     data = request.get_json()
     try:
         # ✅ Validate required fields before creating the instance
-        if not data.get('contact') or not data.get('project_name'):
-            return jsonify({"error": "Missing required fields: contact, project_name"}), 400
+        if not data.get('contact_name') or not data.get('project_name'):
+            return jsonify({"error": "Missing required fields: contact_name, project_name"}), 400
 
         # ✅ Create a new EngineeringBooking instance
         new_booking = EngineeringBooking(
-            contact=data['contact'],
+            contact=data['contact_name'],  # ✅ Updated field name
+            contact_phone=data.get('contact_phone', ""),  # ✅ New field
             project_name=data['project_name'],
             project_description=data.get('project_description'),
             price=data.get('price'),
-            status=data.get('status', "Pending")
+            status=data.get('status', "Pending"),
+            notes=data.get('notes', ""),  # ✅ New field
         )
 
         # ✅ Add to database and commit the transaction
@@ -470,7 +476,6 @@ def save_engineering_booking():
         return jsonify({"error": str(e)}), 500
 
 
-
 @app.route('/engineering-bookings/<int:id>', methods=['PATCH'])
 def update_engineering_booking(id):
     data = request.get_json()
@@ -480,8 +485,10 @@ def update_engineering_booking(id):
         return jsonify({"error": "Engineering booking not found"}), 404
 
     # ✅ Update fields if provided
-    if "contact" in data:
-        booking.contact = data["contact"]
+    if "contact_name" in data:
+        booking.contact = data["contact_name"]  # ✅ Updated field name
+    if "contact_phone" in data:
+        booking.contact_phone = data["contact_phone"]  # ✅ New field
     if "project_name" in data:
         booking.project_name = data["project_name"]
     if "project_description" in data:
@@ -493,6 +500,8 @@ def update_engineering_booking(id):
             booking.price = float(data["price"])
         except ValueError:
             return jsonify({"error": "Price must be a valid number"}), 400
+    if "notes" in data:
+        booking.notes = data["notes"]  # ✅ New field
 
     # ✅ Commit the changes
     db.session.commit()
@@ -501,6 +510,7 @@ def update_engineering_booking(id):
         "message": "Booking updated successfully!",
         "booking": booking.to_dict()
     }), 200
+
 
 # DELETE Engineering Booking
 @app.route('/engineering-bookings/<int:id>', methods=['DELETE'])
