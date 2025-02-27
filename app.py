@@ -532,10 +532,10 @@ def get_engineering_bookings():
         return jsonify({"error": str(e)}), 500
 
 
-
 class GeneralInquiry(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     contact_name = db.Column(db.String(120), nullable=False)
+    contact_phone = db.Column(db.String(20), nullable=True)  # ✅ New phone field
     request = db.Column(db.Text, nullable=False)
     cost = db.Column(db.Integer, nullable=False)
     notes = db.Column(db.Text, nullable=True)
@@ -546,6 +546,7 @@ class GeneralInquiry(db.Model):
         return {
             "id": self.id,
             "contact_name": self.contact_name,
+            "contact_phone": self.contact_phone,  # ✅ Include phone
             "request": self.request,
             "cost": self.cost,
             "notes": self.notes,
@@ -553,12 +554,11 @@ class GeneralInquiry(db.Model):
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S"),
         }
 
-
 @app.route('/general_inquiries', methods=['POST'])
 def create_general_inquiry():
     data = request.get_json()
 
-    required_fields = ['contact_name', 'request', 'cost']
+    required_fields = ['contact_name', 'contact_phone', 'request', 'cost']  # ✅ Added contact_phone
     missing_fields = [field for field in required_fields if field not in data]
     if missing_fields:
         return jsonify({"error": f"Missing fields: {', '.join(missing_fields)}"}), 400
@@ -566,6 +566,7 @@ def create_general_inquiry():
     try:
         inquiry = GeneralInquiry(
             contact_name=data.get('contact_name'),
+            contact_phone=data.get('contact_phone'),  # ✅ Added phone field
             request=data.get('request'),
             cost=data.get('cost'),
             notes=data.get('notes'),
@@ -602,6 +603,8 @@ def update_general_inquiry(inquiry_id):
     try:
         if 'contact_name' in data:
             inquiry.contact_name = data['contact_name']
+        if 'contact_phone' in data:  # ✅ Added phone update field
+            inquiry.contact_phone = data['contact_phone']
         if 'request' in data:
             inquiry.request = data['request']
         if 'cost' in data:
