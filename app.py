@@ -773,14 +773,14 @@ class Income(db.Model):
     income_name = db.Column(db.String(120), nullable=False)
     amount = db.Column(db.Integer, nullable=False)
     date = db.Column(db.DateTime, nullable=False)
-    taxes = db.Column(db.Integer, nullable=True)  # Optional field for taxes
+    taxes = db.Column(db.Float, nullable=True)  # Optional field for taxes
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {
             "id": self.id,
             "income_name": self.income_name,
-            "amount": self.amount,
+            "amount": round(self.amount, 2),  # Ensuring proper decimal formatting
             "date": self.date.strftime("%Y-%m-%d"),
             "taxes": self.taxes,
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S"),
