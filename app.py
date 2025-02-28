@@ -896,7 +896,6 @@ def delete_income(income_id):
 
 
 
-
 @app.route('/income/aggregate', methods=['GET'])
 def aggregate_income():
     try:
@@ -927,7 +926,9 @@ def aggregate_income():
                 income_list.append({
                     "source": "Engineering Booking",
                     "name": f"{eng.contact} - {eng.project_name}",
-                    "amount": eng.price
+                    "amount": eng.price,
+                    "date": eng.date.strftime("%Y-%m-%d") if eng.date else "Unknown",  # Ensure date is included
+                    "id": eng.id if eng.id else None  # Ensure an ID exists
                 })
 
         # General Inquiries
@@ -936,7 +937,9 @@ def aggregate_income():
                 income_list.append({
                     "source": "General Inquiry",
                     "name": gen.contact_name,
-                    "amount": gen.cost
+                    "amount": gen.cost,
+                    "date": gen.date.strftime("%Y-%m-%d") if gen.date else "Unknown",  # Ensure date is included
+                    "id": gen.id if gen.id else None  # Ensure an ID exists
                 })
 
         # Karaoke Hosting
