@@ -40,6 +40,7 @@ def before_request():
         "/engineering-bookings": ["POST", "PATCH", "DELETE", "GET"],
         "/total_expenses_and_mileage": ["POST", "PATCH", "DELETE", "GET"],
         "/mileage/<int:mileage_id>": ['PATCH'],
+        "/income/<int:income_id>": ['PATCH'],
         "/karaoke_hosting": ["POST", "PATCH", "DELETE", "GET"],
         "/income/aggregate": ["POST", "PATCH", "DELETE", "GET"],
         "/mileage": ["POST", "PATCH", "DELETE", "GET"],
@@ -854,19 +855,24 @@ def update_income(income_id):
 
 @app.route('/income/<int:income_id>', methods=['DELETE'])
 def delete_income(income_id):
+    print(f"Delete request received for income_id: {income_id}")  # Debugging
     income = Income.query.get(income_id)
 
     if not income:
+        print("Income not found!")  # Debugging
         return jsonify({"error": "Income record not found."}), 404
 
     try:
         db.session.delete(income)
         db.session.commit()
+        print(f"Deleted income_id: {income_id}")  # Debugging
         return jsonify({"message": f"Income record with ID {income_id} deleted successfully."}), 200
 
     except Exception as e:
         db.session.rollback()
+        print(f"Error: {str(e)}")  # Debugging
         return jsonify({"error": str(e)}), 500
+
 
 
 
