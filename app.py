@@ -419,7 +419,6 @@ def delete_contact(id):
     db.session.commit()
     return jsonify({"message": "Contact booking deleted successfully"}), 200
 # Engineering Booking model
-
 class EngineeringBooking(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     contact = db.Column(db.String(120), nullable=False)  # Stores contact name
@@ -429,21 +428,22 @@ class EngineeringBooking(db.Model):
     price = db.Column(db.Float, nullable=True)
     status = db.Column(db.String(50), nullable=False, default="Pending")
     notes = db.Column(db.Text, nullable=True)  # ✅ New field for additional notes
+    date = db.Column(db.DateTime, nullable=True)  # ✅ NEW FIELD: Store the booking date
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {
             "id": self.id,
             "contact": self.contact,
-            "contact_phone": self.contact_phone,  # ✅ Include phone
+            "contact_phone": self.contact_phone,
             "project_name": self.project_name,
             "project_description": self.project_description,
             "price": self.price,
             "status": self.status,
-            "notes": self.notes,  # ✅ Include notes
-            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            "notes": self.notes,
+            "date": self.date.strftime("%Y-%m-%d") if self.date else None,  # ✅ Convert date properly
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S"),
         }
-
 
 
 @app.route('/engineering-bookings', methods=['POST'])
@@ -454,6 +454,16 @@ def save_engineering_booking():
         if not data.get('contact_name') or not data.get('project_name'):
             return jsonify({"error": "Missing required fields: contact_name, project_name"}), 400
 
+        # ✅ Parse date (ensure it is in a valid format)
+        date_value = data.get('date')
+        booking_date = None  # Default value if no date is provided
+
+        if date_value:
+            try:
+                booking_date = datetime.strptime(date_value, "%Y-%m-%d")  # Ensure proper date format
+            except ValueError:
+                return jsonify({"error": "Invalid date format. Expected YYYY-MM-DD."}), 400
+
         # ✅ Create a new EngineeringBooking instance
         new_booking = EngineeringBooking(
             contact=data['contact_name'],  # ✅ Updated field name
@@ -463,6 +473,7 @@ def save_engineering_booking():
             price=data.get('price'),
             status=data.get('status', "Pending"),
             notes=data.get('notes', ""),  # ✅ New field
+            date=booking_date  # ✅ Save the parsed date
         )
 
         # ✅ Add to database and commit the transaction
@@ -476,6 +487,7 @@ def save_engineering_booking():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+from datetime import datetime
 
 @app.route('/engineering-bookings/<int:id>', methods=['PATCH'])
 def update_engineering_booking(id):
@@ -503,6 +515,15 @@ def update_engineering_booking(id):
             return jsonify({"error": "Price must be a valid number"}), 400
     if "notes" in data:
         booking.notes = data["notes"]  # ✅ New field
+
+    # ✅ Handle `date` field update
+    if "date" in data:
+        date_value = data["date"]
+        if date_value:
+            try:
+                booking.date = datetime.strptime(date_value, "%Y-%m-%d")  # Convert to proper format
+            except ValueError:
+                return jsonify({"error": "Invalid date format. Expected YYYY-MM-DD."}), 400
 
     # ✅ Commit the changes
     db.session.commit()
