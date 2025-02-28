@@ -927,7 +927,7 @@ def aggregate_income():
                     "source": "Engineering Booking",
                     "name": f"{eng.contact} - {eng.project_name}",
                     "amount": eng.price,
-                    "date": eng.date.strftime("%Y-%m-%d") if eng.date else "Unknown",  # Ensure date is included
+                    "date": eng.date.strftime("%Y-%m-%d") if eng.date else None,  # Only use date field
                     "id": eng.id if eng.id else None  # Ensure an ID exists
                 })
 
@@ -938,7 +938,7 @@ def aggregate_income():
                     "source": "General Inquiry",
                     "name": gen.contact_name,
                     "amount": gen.cost,
-                    "date": gen.date.strftime("%Y-%m-%d") if gen.date else "Unknown",  # Ensure date is included
+                    "date": gen.date.strftime("%Y-%m-%d") if gen.date else None,  # Only use date field
                     "id": gen.id if gen.id else None  # Ensure an ID exists
                 })
 
