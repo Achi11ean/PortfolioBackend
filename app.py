@@ -40,7 +40,7 @@ def before_request():
         "/engineering-bookings": ["POST", "PATCH", "DELETE", "GET"],
         "/total_expenses_and_mileage": ["POST", "PATCH", "DELETE", "GET"],
         "/mileage/<int:mileage_id>": ['PATCH'],
-        "/income/<int:income_id>": ['PATCH'],
+        "/income/<int:income_id>":["PATCH", "DELETE"],
         "/karaoke_hosting": ["POST", "PATCH", "DELETE", "GET"],
         "/income/aggregate": ["POST", "PATCH", "DELETE", "GET"],
         "/mileage": ["POST", "PATCH", "DELETE", "GET"],
