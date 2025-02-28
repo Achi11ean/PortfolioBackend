@@ -827,15 +827,37 @@ def get_incomes():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/income', methods=['PATCH'])
 @app.route('/income/<int:income_id>', methods=['PATCH'])
-def update_income(income_id):
+def update_income(income_id=None):
     data = request.get_json()
+
+    # If no income_id is provided, assign the next available ID
+    if income_id is None:
+        max_income = db.session.query(db.func.max(Income.id)).scalar()
+        income_id = (max_income + 1) if max_income is not None else 1
+
     income = Income.query.get(income_id)
 
     if not income:
-        return jsonify({"error": "Income record not found."}), 404
+        # If the income record doesn't exist, create a new one
+        try:
+            new_income = Income(
+                id=income_id,
+                income_name=data.get('income_name', 'Unknown Income'),
+                amount=data.get('amount', 0.0),
+                date=datetime.strptime(data.get('date', datetime.today().strftime("%Y-%m-%d")), "%Y-%m-%d"),
+                taxes=data.get('taxes', 0.0)
+            )
+            db.session.add(new_income)
+            db.session.commit()
+            return jsonify({"message": "New income record created!", "income": new_income.to_dict()}), 201
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 500
 
     try:
+        # Update existing income record
         if 'income_name' in data:
             income.income_name = data['income_name']
         if 'amount' in data:
@@ -851,7 +873,6 @@ def update_income(income_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/income/<int:income_id>', methods=['DELETE'])
 def delete_income(income_id):
