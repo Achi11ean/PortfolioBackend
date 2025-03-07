@@ -78,7 +78,8 @@ def before_request():
         "/music-break":["GET", "PATCH"],
         "/karaokesignup/singer_counts":["GET"],
         "/karaokesignup/active":["GET"],
-        "/karaokesettings": ["GET","PATCH"]
+        "/karaokesettings": ["GET","PATCH"],
+        "/reviews/<int:id>/approve":["PATCH"]
         
 
 
@@ -561,7 +562,7 @@ class GeneralInquiry(db.Model):
     request = db.Column(db.Text, nullable=False)
     cost = db.Column(db.Integer, nullable=False)
     notes = db.Column(db.Text, nullable=True)
-    date = db.Column(db.String(50), nullable=True)
+    date = db.Column(db.DateTime, nullable=True)  # ✅ Change to DateTime
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -572,9 +573,10 @@ class GeneralInquiry(db.Model):
             "request": self.request,
             "cost": self.cost,
             "notes": self.notes,
-            "date": self.date,
+            "date": self.date.strftime("%Y-%m-%d") if self.date else None,  # ✅ Now properly formatted
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S"),
         }
+from datetime import datetime
 
 @app.route('/general_inquiries', methods=['POST'])
 def create_general_inquiry():
@@ -586,13 +588,21 @@ def create_general_inquiry():
         return jsonify({"error": f"Missing fields: {', '.join(missing_fields)}"}), 400
 
     try:
+        # ✅ Convert date from string to DateTime (if provided)
+        inquiry_date = None
+        if 'date' in data and data['date']:
+            try:
+                inquiry_date = datetime.strptime(data['date'], "%Y-%m-%d")  # ✅ Ensure YYYY-MM-DD format
+            except ValueError:
+                return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
+
         inquiry = GeneralInquiry(
             contact_name=data.get('contact_name'),
-            contact_phone=data.get('contact_phone'),  # ✅ Added phone field
+            contact_phone=data.get('contact_phone'),  
             request=data.get('request'),
             cost=data.get('cost'),
             notes=data.get('notes'),
-            date=data.get('date')
+            date=inquiry_date  # ✅ Store as DateTime
         )
 
         db.session.add(inquiry)
@@ -613,6 +623,7 @@ def get_general_inquiries():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+from datetime import datetime
 
 @app.route('/general_inquiries/<int:inquiry_id>', methods=['PATCH'])
 def update_general_inquiry(inquiry_id):
@@ -625,7 +636,7 @@ def update_general_inquiry(inquiry_id):
     try:
         if 'contact_name' in data:
             inquiry.contact_name = data['contact_name']
-        if 'contact_phone' in data:  # ✅ Added phone update field
+        if 'contact_phone' in data:  # ✅ Update phone field
             inquiry.contact_phone = data['contact_phone']
         if 'request' in data:
             inquiry.request = data['request']
@@ -634,7 +645,11 @@ def update_general_inquiry(inquiry_id):
         if 'notes' in data:
             inquiry.notes = data['notes']
         if 'date' in data:
-            inquiry.date = data['date']
+            try:
+                # ✅ Convert date string to datetime object
+                inquiry.date = datetime.strptime(data['date'], "%Y-%m-%d")
+            except ValueError:
+                return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
 
         db.session.commit()
         return jsonify({"message": "General inquiry updated successfully!", "inquiry": inquiry.to_dict()}), 200
