@@ -175,14 +175,37 @@ def approve_review(id):
     """
     Approve a review by setting is_approved to True.
     """
+    print(f"Received PATCH request to approve review with ID: {id}")
+
+    # Log request headers
+    print("Request Headers:", request.headers)
+
+    # Log request body (if any)
+    try:
+        request_data = request.json  # This will be None if there's no JSON body
+        print("Request JSON Body:", request_data)
+    except Exception as e:
+        print("Error parsing JSON body:", e)
+        request_data = None
+
+    # Fetch the review
     review = Review.query.get(id)
     if not review:
+        print(f"Review with ID {id} not found.")
         return jsonify({"error": "Review not found"}), 404
 
+    # Log current review state
+    print(f"Before update: Review ID: {review.id}, Approved: {review.is_approved}")
+
+    # Approve the review
     review.is_approved = True
     db.session.commit()
 
+    # Log new state
+    print(f"After update: Review ID: {review.id}, Approved: {review.is_approved}")
+
     return jsonify({"message": "Review approved successfully!", "review": review.to_dict()}), 200
+
 
 
 
