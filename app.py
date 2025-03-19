@@ -2304,6 +2304,48 @@ def delete_single_instagram_post():
     db.session.commit()
     return jsonify({"message": "Post URL deleted successfully", "post_urls": posts.post_urls}), 200
 
+
+class PhotoSliderImage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    image_url = db.Column(db.String(500), nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.now())
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "image_url": self.image_url,
+            "created_at": self.created_at.isoformat()
+        }
+
+@app.route("/slider-images/public", methods=["GET"])
+def get_slider_images_public():
+    images = PhotoSliderImage.query.order_by(PhotoSliderImage.created_at.desc()).all()
+    return jsonify([img.to_dict() for img in images]), 200
+
+@app.route("/slider-images", methods=["POST"])
+def add_slider_image():
+    data = request.get_json()
+    image_url = data.get("image_url")
+    if not image_url:
+        return jsonify({"error": "Missing image URL"}), 400
+
+    new_image = PhotoSliderImage(image_url=image_url)
+    db.session.add(new_image)
+    db.session.commit()
+
+    return jsonify(new_image.to_dict()), 201
+
+
+@app.route("/slider-images/<int:id>", methods=["DELETE"])
+def delete_slider_image(id):
+    image = PhotoSliderImage.query.get(id)
+    if not image:
+        return jsonify({"error": "Image not found"}), 404
+
+    db.session.delete(image)
+    db.session.commit()
+    return jsonify({"message": "Image deleted"}), 200
+
 # Initialize database and run server
 if __name__ == "__main__":
     with app.app_context():
