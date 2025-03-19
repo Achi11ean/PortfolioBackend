@@ -1449,7 +1449,7 @@ class Karaoke(db.Model):
             "artist": self.artist,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "is_flagged": self.is_flagged,
-            "is_deleted": self.is_deleted,  # Include soft delete flag
+            "is_deleted": self.is_deleted,  
             "position": self.position,
             "is_warning": self.is_warning, 
             "adjustment": self.adjustment 
@@ -2236,6 +2236,52 @@ def update_karaoke_settings():
         settings.max_songs_per_singer = data["max_songs_per_singer"]
     db.session.commit()
     return jsonify(settings.to_dict()), 200
+
+
+
+class InstagramPosts(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    post_urls = db.Column(db.Text, nullable=True)  # Comma-separated string
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "post_urls": self.post_urls,
+            "updated_at": self.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+
+@app.route("/instagram-posts", methods=["GET"])
+def get_instagram_posts():
+    posts = InstagramPosts.query.first()
+    if not posts:
+        posts = InstagramPosts(post_urls="")
+        db.session.add(posts)
+        db.session.commit()
+    return jsonify(posts.to_dict()), 200
+
+@app.route("/instagram-posts", methods=["PATCH"])
+def update_instagram_posts():
+    data = request.get_json()
+    post_urls = data.get("post_urls", "")
+    posts = InstagramPosts.query.first()
+    if not posts:
+        posts = InstagramPosts(post_urls=post_urls)
+        db.session.add(posts)
+    else:
+        posts.post_urls = post_urls
+    db.session.commit()
+    return jsonify(posts.to_dict()), 200
+
+@app.route("/instagram-posts", methods=["DELETE"])
+def delete_instagram_posts():
+    posts = InstagramPosts.query.first()
+    if not posts:
+        return jsonify({"message": "No Instagram post data to delete."}), 200
+
+    db.session.delete(posts)
+    db.session.commit()
+    return jsonify({"message": "Instagram post URLs deleted successfully."}), 200
 
 
 
