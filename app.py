@@ -2285,6 +2285,24 @@ def delete_instagram_posts():
     return jsonify({"message": "Instagram post URLs deleted successfully."}), 200
 
 
+@app.route("/instagram-posts/delete-one", methods=["PATCH"])
+def delete_single_instagram_post():
+    data = request.get_json()
+    url_to_delete = data.get("url")
+
+    if not url_to_delete:
+        return jsonify({"error": "Missing URL to delete"}), 400
+
+    posts = InstagramPosts.query.first()
+    if not posts or not posts.post_urls:
+        return jsonify({"message": "No posts available"}), 200
+
+    # Remove matching URL
+    urls = [url.strip() for url in posts.post_urls.split(",") if url.strip() != url_to_delete]
+    posts.post_urls = ",".join(urls)
+
+    db.session.commit()
+    return jsonify({"message": "Post URL deleted successfully", "post_urls": posts.post_urls}), 200
 
 # Initialize database and run server
 if __name__ == "__main__":
