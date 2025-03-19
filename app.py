@@ -79,7 +79,9 @@ def before_request():
         "/karaokesignup/active":["GET"],
         "/karaokesettings": ["GET","PATCH"],
         "/reviews/<int:id>/approve":["PATCH"],
-        "/instagram-posts":["PATCH", "GET", "POST"]
+        "/instagram-posts":["PATCH", "GET", "POST"],
+        "/slider-images":["POST", "GET", "PATCH", "DELETE"]
+
 
         
 
