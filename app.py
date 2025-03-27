@@ -10,6 +10,7 @@ from flask_cors import CORS
 from sqlalchemy import extract, func  # To filter by month
 from dotenv import load_dotenv
 import os
+import requests
 
 load_dotenv()
 
@@ -1015,7 +1016,26 @@ def aggregate_income():
         return jsonify({"error": str(e)}), 500
 
 
+GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
+HOME_ADDRESS = os.getenv("HOME_ADDRESS")
 
+def get_distance_from_google(start, end):
+    url = "https://maps.googleapis.com/maps/api/distancematrix/json"
+    params = {
+        "origins": start,
+        "destinations": end,
+        "key": GOOGLE_MAPS_API_KEY,
+        "units": "imperial"
+    }
+    response = requests.get(url, params=params)
+    data = response.json()
+
+    if data["status"] != "OK":
+        raise Exception("Google Maps API error: " + data.get("error_message", "Unknown error"))
+
+    distance_text = data["rows"][0]["elements"][0]["distance"]["text"]  # e.g. "12.3 mi"
+    distance_value = float(distance_text.replace("mi", "").strip())
+    return distance_value
 
 
 class MileageTracker(db.Model):
@@ -1044,31 +1064,31 @@ class MileageTracker(db.Model):
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S"),
         }
 
-
 @app.route('/mileage', methods=['POST'])
 def create_mileage():
     data = request.get_json()
 
-    required_fields = ['expense_name', 'date', 'start_location', 'end_location', 'distance_driven']
+    required_fields = ['expense_name', 'date', 'end_location']
     missing_fields = [field for field in required_fields if field not in data]
     if missing_fields:
         return jsonify({"error": f"Missing fields: {', '.join(missing_fields)}"}), 400
 
     try:
-        # Handle round trip (default to False if not provided)
         is_round_trip = data.get('is_round_trip', False)
-        original_distance = data.get('distance_driven')
+        end_location = data['end_location']
+        start_location = data.get('start_location', HOME_ADDRESS)
 
-        # ✅ Double the distance if round trip selected
-        adjusted_distance = original_distance * (2 if is_round_trip else 1)
+        # 🗺️ Auto-calculate distance using Google Maps
+        one_way_distance = get_distance_from_google(start_location, end_location)
+        adjusted_distance = one_way_distance * (2 if is_round_trip else 1)
         calculated_mileage = round(adjusted_distance * 0.67, 2)
 
         mileage = MileageTracker(
-            expense_name=data.get('expense_name'),
-            date=datetime.strptime(data.get('date'), "%Y-%m-%d"),
-            start_location=data.get('start_location'),
-            end_location=data.get('end_location'),
-            distance_driven=adjusted_distance,  # ✅ Store adjusted distance (doubled if round trip)
+            expense_name=data['expense_name'],
+            date=datetime.strptime(data['date'], "%Y-%m-%d"),
+            start_location=start_location,
+            end_location=end_location,
+            distance_driven=adjusted_distance,
             is_round_trip=is_round_trip,
             calculated_mileage=calculated_mileage,
             notes=data.get('notes')
