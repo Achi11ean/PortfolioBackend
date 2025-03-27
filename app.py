@@ -1079,7 +1079,11 @@ def create_mileage():
         start_location = data.get('start_location', HOME_ADDRESS)
 
         # 🗺️ Auto-calculate distance using Google Maps
-        one_way_distance = get_distance_from_google(start_location, end_location)
+        try:
+            one_way_distance = get_distance_from_google(start_location, end_location)
+        except Exception as api_error:
+            print("❌ Google Maps API Error:", api_error)
+            raise
         adjusted_distance = one_way_distance * (2 if is_round_trip else 1)
         calculated_mileage = round(adjusted_distance * 0.67, 2)
 
