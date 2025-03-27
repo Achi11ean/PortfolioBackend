@@ -1076,7 +1076,9 @@ def create_mileage():
     try:
         is_round_trip = data.get('is_round_trip', False)
         end_location = data['end_location']
-        start_location = data.get('start_location', HOME_ADDRESS)
+        start_location = data.get('start_location')
+        if not start_location or start_location.strip().lower() == "home":
+            start_location = HOME_ADDRESS
 
         # 🗺️ Auto-calculate distance using Google Maps
         try:
