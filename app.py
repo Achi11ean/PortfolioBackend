@@ -1103,6 +1103,7 @@ def create_mileage():
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+
 @app.route('/mileage/<int:mileage_id>', methods=['PATCH'])
 def update_mileage(mileage_id):
     print(f"🔄 Incoming PATCH request for mileage ID: {mileage_id}")
