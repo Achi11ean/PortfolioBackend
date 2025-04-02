@@ -2375,16 +2375,25 @@ def delete_slider_image(id):
     db.session.commit()
     return jsonify({"message": "Image deleted"}), 200
 
+
 @app.route("/facebook-posts")
 def get_facebook_posts():
     access_token = os.getenv("FACEBOOK_TOKEN")
-    url = f"https://graph.facebook.com/v19.0/441401162400735/posts"
+    page_id = "441401162400735"  # Your Facebook Page ID
+    url = f"https://graph.facebook.com/v19.0/{page_id}/posts"
+
     params = {
         "fields": "message,full_picture,created_time,permalink_url",
         "access_token": access_token
     }
-    res = requests.get(url, params=params)
-    return jsonify(res.json())
+
+    try:
+        res = requests.get(url, params=params)
+        res.raise_for_status()
+        return jsonify(res.json())
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": "Failed to fetch Facebook posts", "details": str(e)}), 500
+
 
 
 # Initialize database and run server
