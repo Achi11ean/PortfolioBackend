@@ -81,8 +81,8 @@ def before_request():
         "/karaokesettings": ["GET","PATCH"],
         "/reviews/<int:id>/approve":["PATCH"],
         "/instagram-posts":["PATCH", "GET", "POST"],
-        "/slider-images":["POST", "GET", "PATCH", "DELETE"]
-
+        "/slider-images":["POST", "GET", "PATCH", "DELETE"],
+        "/facebook-posts": ["GET"]
 
         
 
