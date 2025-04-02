@@ -92,9 +92,11 @@ def before_request():
         return  # Let CORS handle it
 
     for endpoint, methods in public_endpoints.items():
-        if request.path.startswith(endpoint) and request.method in methods:
-            print("Public endpoint, skipping token verification.")
+        if request.path.rstrip("/").startswith(endpoint.rstrip("/")) and request.method in methods:
+            print("✅ Public endpoint, skipping token verification.")
             return
+
+    print(f"📥 Incoming request to: {request.path}")
 
     token = request.headers.get('Authorization')
     if not token:
