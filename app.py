@@ -81,8 +81,8 @@ def before_request():
         "/karaokesettings": ["GET","PATCH"],
         "/reviews/<int:id>/approve":["PATCH"],
         "/instagram-posts":["PATCH", "GET", "POST"],
-        "/slider-images":["POST", "GET", "PATCH", "DELETE"],
-        "/facebook-posts": ["GET"]
+        "/slider-images":["POST", "GET", "PATCH", "DELETE"]
+
 
         
 
@@ -92,11 +92,9 @@ def before_request():
         return  # Let CORS handle it
 
     for endpoint, methods in public_endpoints.items():
-        if request.path.rstrip("/").startswith(endpoint.rstrip("/")) and request.method in methods:
-            print("✅ Public endpoint, skipping token verification.")
+        if request.path.startswith(endpoint) and request.method in methods:
+            print("Public endpoint, skipping token verification.")
             return
-
-    print(f"📥 Incoming request to: {request.path}")
 
     token = request.headers.get('Authorization')
     if not token:
@@ -2377,24 +2375,6 @@ def delete_slider_image(id):
     db.session.commit()
     return jsonify({"message": "Image deleted"}), 200
 
-
-@app.route("/facebook-posts")
-def get_facebook_posts():
-    access_token = os.getenv("FACEBOOK_TOKEN")
-    page_id = "441401162400735"  # Your Facebook Page ID
-    url = f"https://graph.facebook.com/v19.0/{page_id}/posts"
-
-    params = {
-        "fields": "message,full_picture,created_time,permalink_url",
-        "access_token": access_token
-    }
-
-    try:
-        res = requests.get(url, params=params)
-        res.raise_for_status()
-        return jsonify(res.json())
-    except requests.exceptions.RequestException as e:
-        return jsonify({"error": "Failed to fetch Facebook posts", "details": str(e)}), 500
 
 
 
