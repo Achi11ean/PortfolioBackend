@@ -2375,6 +2375,18 @@ def delete_slider_image(id):
     db.session.commit()
     return jsonify({"message": "Image deleted"}), 200
 
+@app.route("/facebook-posts")
+def get_facebook_posts():
+    access_token = os.getenv("FACEBOOK_TOKEN")
+    url = f"https://graph.facebook.com/v19.0/441401162400735/posts"
+    params = {
+        "fields": "message,full_picture,created_time,permalink_url",
+        "access_token": access_token
+    }
+    res = requests.get(url, params=params)
+    return jsonify(res.json())
+
+
 # Initialize database and run server
 if __name__ == "__main__":
     with app.app_context():
