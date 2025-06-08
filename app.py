@@ -1301,18 +1301,23 @@ def create_karaoke_hosting():
 @app.route('/karaoke_hosting/<int:k_id>', methods=['PATCH'])
 def update_karaoke_hosting(k_id):
     data = request.get_json()
+    print(f"🔧 Incoming PATCH for ID {k_id} with data:", data)  # 🛠 Incoming data
+
     karaoke_hosting = KaraokeHosting.query.get(k_id)
 
     if not karaoke_hosting:
+        print("❌ Event not found.")
         return jsonify({"error": "Karaoke hosting event not found."}), 404
 
+    print("📦 Existing values before update:", karaoke_hosting.to_dict())  # 🧾 Before update
+
     try:
-        # ✅ Include phone number update
+        # ✅ Apply changes if fields are present
         if 'company_name' in data:
             karaoke_hosting.company_name = data['company_name']
         if 'contact_name' in data:
             karaoke_hosting.contact_name = data['contact_name']
-        if 'contact_phone' in data:  # ← Add this block
+        if 'contact_phone' in data:
             karaoke_hosting.contact_phone = data['contact_phone']
         if 'location' in data:
             karaoke_hosting.location = data['location']
@@ -1327,6 +1332,8 @@ def update_karaoke_hosting(k_id):
 
         db.session.commit()
 
+        print("✅ Updated values:", karaoke_hosting.to_dict())  # ✔ After update
+
         return jsonify({
             "message": "Karaoke hosting event updated successfully!",
             "karaoke_hosting": karaoke_hosting.to_dict()
@@ -1334,7 +1341,9 @@ def update_karaoke_hosting(k_id):
 
     except Exception as e:
         db.session.rollback()
+        print("🔥 Update error:", str(e))  # ❗ Error info
         return jsonify({"error": str(e)}), 500
+
 
 
 
