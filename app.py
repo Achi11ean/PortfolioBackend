@@ -1307,11 +1307,13 @@ def update_karaoke_hosting(k_id):
         return jsonify({"error": "Karaoke hosting event not found."}), 404
 
     try:
-        # Update fields if present in request
+        # ✅ Include phone number update
         if 'company_name' in data:
             karaoke_hosting.company_name = data['company_name']
         if 'contact_name' in data:
             karaoke_hosting.contact_name = data['contact_name']
+        if 'contact_phone' in data:  # ← Add this block
+            karaoke_hosting.contact_phone = data['contact_phone']
         if 'location' in data:
             karaoke_hosting.location = data['location']
         if 'payment_amount' in data:
@@ -1325,11 +1327,15 @@ def update_karaoke_hosting(k_id):
 
         db.session.commit()
 
-        return jsonify({"message": "Karaoke hosting event updated successfully!", "karaoke_hosting": karaoke_hosting.to_dict()}), 200
+        return jsonify({
+            "message": "Karaoke hosting event updated successfully!",
+            "karaoke_hosting": karaoke_hosting.to_dict()
+        }), 200
 
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
 
 
 @app.route('/karaoke_hosting/<int:k_id>', methods=['DELETE'])
